@@ -38,9 +38,9 @@ def getConfigClient():
     client.read('client.ini')
     ip = client.get('CONFIG', 'SERVERIP')
     port = client.get('CONFIG', 'PORT')
-    client_name = client.get('CONFIG', 'CLIENTNAME')
+    lastauto = client.get('CONFIG', 'LASTAUTO')
     serie = client.get('CONFIG', 'SERIE')
-    return ip, port, client_name.lower(), serie
+    return ip, port, lastauto, serie
     
 
 #updateAuto('25', 'CAJA01', 'LASTAUTO')    
