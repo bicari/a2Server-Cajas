@@ -8,14 +8,14 @@ import os
 import time
 import asyncio
 import socketio.exceptions
+from controls import GrupoContenedores
 import pathlib
 from read_ini import getConfigClient
 import base64
 import sys
 from querys.update_tablas import sqlQuerys
 from tray_icon import Icon
-from controls.controles_sidebar.containers import GrupoContenedores
-from controls.pages.page_config import ConfigPage
+from pages import ConfigPage, SyncPage
 
 
  
@@ -67,7 +67,7 @@ async def connect():
     snack_bar_msg_connection.content = ft.Text('Conectado al servidor')
     snack_bar_msg_connection.open = True
     p.update()
-    tray_icon_minimize.icon = Image.open("controls\\images\\Conectado.png")
+    tray_icon_minimize.icon = Image.open("images\\Conectado.png")
     try:
         print('Estoy conectado')
         await asyncio.sleep(5)
@@ -83,7 +83,7 @@ async def disconnect():
     snack_bar_msg_connection.content = ft.Text('Desconectado del servidor')
     snack_bar_msg_connection.open = True
     p.update()
-    tray_icon_minimize.icon = Image.open("controls\\images\\Desconectado.png")    
+    tray_icon_minimize.icon = Image.open("images\\Desconectado.png")    
 
 async def init_client():
     try:
@@ -116,7 +116,7 @@ def main(page):
     global p
     p = page
     global tray_icon_minimize
-    tray_icon_minimize = Icon( title='App de sincronizacion', icon=Image.open("controls\\images\\Conectado.png"), page=p)
+    tray_icon_minimize = Icon( title='App de sincronizacion', icon=Image.open("images\\Conectado.png"), page=p)
     p.window.max_height = 400
     p.window.min_height= 400
     p.window.min_width= 400
@@ -130,10 +130,13 @@ def main(page):
     global snack_bar_msg_connection
     snack_bar_msg_connection = ft.SnackBar(ft.Text() ,action='Alright!', visible=True, duration=4000)
     p.overlay.append(snack_bar_msg_connection)
-    badge_connection = ft.Badge(content=ft.Icon(ft.icons.ONLINE_PREDICTION), bgcolor=ft.colors.RED, alignment=ft.alignment.center,small_size=10)  
-    buttons_sidebar= GrupoContenedores(page=p, badge=badge_connection).control_group
+    badge_connection = ft.Badge(content=ft.Icon(ft.icons.ONLINE_PREDICTION), bgcolor=ft.colors.RED, alignment=ft.alignment.center,small_size=10)
+    btn_save_data = ft.FloatingActionButton("Guardar", icon=ft.icons.SAVE, visible=False)  
+    page_config = ConfigPage(page=p, config=config, btn_save_data=btn_save_data)
+    sync_page = SyncPage()
+    buttons_sidebar= GrupoContenedores(page=p, badge=badge_connection, page_container_to_show_settings=page_config, page_container_to_show_sync=sync_page).control_group
     
-    page_config = ConfigPage(page=p)
+    
    
     
     
@@ -143,7 +146,8 @@ def main(page):
             ft.Container(
                 ft.Column(controls=buttons_sidebar, horizontal_alignment=ft.CrossAxisAlignment.CENTER, width=80,expand=True), 
                 bgcolor=ft.colors.CYAN_800, border_radius=12),
-            page_config    
+            page_config,
+            sync_page    
             ],
             expand=True
             #ft.Row([ft.Container(bgcolor='white', expand=True)], expand=True)
