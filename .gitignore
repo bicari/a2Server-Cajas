@@ -1,2 +1,6 @@
 /env_server
 *.zip
+__pycache__
+/zip
+/dist
+/build
