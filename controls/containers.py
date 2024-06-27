@@ -22,7 +22,7 @@ class ContainersIconsNav(ft.Container):
             e.control.color = 'white'
             e.control.update()
         else:
-            e.control.bgcolor = ft.colors.CYAN_800
+            e.control.bgcolor = '#474b4e'
             e.control.color = 'black'    
             e.control.update()
                

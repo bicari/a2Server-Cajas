@@ -4,7 +4,7 @@ import time
 import asyncio
 import socketio.exceptions
 import pathlib
-from read_ini import getConfigClient
+from functions import getConfigClient
 import base64
 import sys
 from querys.update_tablas import sqlQuerys

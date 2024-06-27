@@ -3,9 +3,9 @@ import time
 
 connect = pyodbc.connect("""DSN=A2GKC;DRIVER={C:\Program Files (x86)\DBISAM 4 ODBC-CS\libs\dbodbc\read-write\win64\dbodbc.dll};
                          ConnectionType=Local;RemoteIPAddress=127.0.0.1;RemotePort=12005;RemoteCompression=0;RemotePing=False;RemotePingInterval=60;RemoteEncryption=False;RemoteEncryptionPassword=elevatesoft;RemoteReadAhead=50;
-                         CatalogName=C:\\a2CA2020\\Empre001\\Data;ReadOnly=False;LockRetryCount=15;LockWaitTime=100;ForceBufferFlush=False;StrictChangeDetection=False;PrivateDirectory=C:\\a2CA2020\\Empre001\\Data""")
+                         CatalogName=C:\\Users\\BICARI\PyApps\\a2-server-cajas\\a2cash_dblocal;ReadOnly=False;LockRetryCount=15;LockWaitTime=100;ForceBufferFlush=False;StrictChangeDetection=False;PrivateDirectory=C:\\Users\\BICARI\PyApps\\a2-server-cajas\\a2cash_dblocal""")
 cursor = connect.cursor()
-cursor.execute(""" CREATE TABLE IF NOT EXISTS "C:/a2CA2020/Empre001/Data/BLOB_TEMP"
+cursor.execute(""" CREATE TABLE IF NOT EXISTS BLOB_TEMP
 (
    "FTI_DOCUMENTO" VARCHAR(30),
    "FTI_FORMADEPAGO" BLOB,
@@ -24,10 +24,10 @@ time.sleep(3)
 
 
 try:
-    cursor.execute("""INSERT INTO "C:/a2CA2020/Empre001/Data/BLOB_TEMP" (FTI_DOCUMENTO, FTI_FORMADEPAGO)
+    cursor.execute("""INSERT INTO BLOB_TEMP (FTI_DOCUMENTO, FTI_FORMADEPAGO)
                   SELECT FTI_DOCUMENTO, FTI_FORMADEPAGO
-                  FROM "C:/a2CA2020/Empre001/Data/SOPERACIONINV" 
-                  WHERE FTI_AUTOINCREMENT = '' """)
+                  FROM SOPERACIONINV 
+                  WHERE FTI_AUTOINCREMENT = 238 """)
     cursor.commit()
     
 except Exception as e:

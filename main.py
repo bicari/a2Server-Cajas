@@ -10,21 +10,25 @@ import asyncio
 import socketio.exceptions
 from controls import GrupoContenedores
 import pathlib
-from read_ini import getConfigClient
+from functions import getConfigClient
 import base64
 import sys
 from querys.update_tablas import sqlQuerys
 from tray_icon import Icon
 from pages import ConfigPage, SyncPage
+from querys import sqlQuerys
 
 
  
 p : ft.Page
 caja = socketio.AsyncClient( reconnection=True, logger=True)
-
-config =  getConfigClient()
 list_file = []
-print(config)
+config =  getConfigClient()
+PATH_DSN_ODBC =r"""DSN=A2GKC;DRIVER={path};ConnectionType=Local;RemoteIPAddress=127.0.0.1;RemotePort=12005;RemoteCompression=0;
+RemotePing=False;RemotePingInterval=60;RemoteEncryption=False;RemoteEncryptionPassword=elevatesoft;RemoteReadAhead=50;CatalogName={catalogname};ReadOnly=False;
+LockRetryCount=15;LockWaitTime=100;ForceBufferFlush=False;
+StrictChangeDetection=False;PrivateDirectory={catalogname}""".format(catalogname=config[2], path=r'C:\Program Files (x86)\DBISAM 4 ODBC-CS\libs\dbodbc\read-write\win64\dbodbc.dll')
+
 async def search_sales():
     while caja.connected:
         await asyncio.sleep(3)
@@ -60,6 +64,18 @@ async def end_file(data: dict):
 async def update_sinvdep(data: dict):
     print(data, 'test')
 
+@caja.on('update_so_sd', namespace='/default')
+async def update_soperacion_sdetalle_local(data:dict):
+    auto_so = data['soperacion_auto']
+    auto_sd = data['sdetalle_auto']
+    result = sqlQuerys(dsn=PATH_DSN_ODBC).update_tablas_locales(auto_so, auto_sd)
+
+@caja.on('send_data_sales', namespace='/default')
+async def send_files_sales(data: dict):
+    if data['serie'] == config[3]: #SERIE
+        pass
+    else:
+        pass    
 
 @caja.on('connect', namespace='/default')
 async def connect():
@@ -71,8 +87,8 @@ async def connect():
     try:
         print('Estoy conectado')
         await asyncio.sleep(5)
-        caja.start_background_task(search_sales)
-        await caja.emit('update_tablas', namespace='/default')
+        #caja.start_background_task(search_sales)
+        #await caja.emit('update_tablas', namespace='/default')
     except socketio.exceptions.ConnectionError:
         print('reconectando')
         await asyncio.sleep(5)
@@ -108,7 +124,6 @@ def window_event(e):
     p.update()    
         
 def entry_connect():
-    print(caja.connected)
     asyncio.run(init_client())
 
 
@@ -127,13 +142,14 @@ def main(page):
     hilo_connect = threading.Thread(target=entry_connect)    
     hilo_connect.start()
     global badge_connection
-    global snack_bar_msg_connection
-    snack_bar_msg_connection = ft.SnackBar(ft.Text() ,action='Alright!', visible=True, duration=4000)
+    global snack_bar_msg_connection, list_view_data_client
+    list_view_data_client = ft.ListView([], spacing=10, padding=20)
+    snack_bar_msg_connection = ft.SnackBar(ft.Text() ,action='Alright!', visible=True, duration=4000)#Mensaje de conexion al servidor establecida
     p.overlay.append(snack_bar_msg_connection)
     badge_connection = ft.Badge(content=ft.Icon(ft.icons.ONLINE_PREDICTION), bgcolor=ft.colors.RED, alignment=ft.alignment.center,small_size=10)
     btn_save_data = ft.FloatingActionButton("Guardar", icon=ft.icons.SAVE, visible=False)  
     page_config = ConfigPage(page=p, config=config, btn_save_data=btn_save_data)
-    sync_page = SyncPage()
+    sync_page = SyncPage(page=p, client_socket=caja, list_view_send_data=list_view_data_client)
     buttons_sidebar= GrupoContenedores(page=p, badge=badge_connection, page_container_to_show_settings=page_config, page_container_to_show_sync=sync_page).control_group
     
     
@@ -145,7 +161,7 @@ def main(page):
             ft.Row(controls=[
             ft.Container(
                 ft.Column(controls=buttons_sidebar, horizontal_alignment=ft.CrossAxisAlignment.CENTER, width=80,expand=True), 
-                bgcolor=ft.colors.CYAN_800, border_radius=12),
+                bgcolor='#474b4e', border_radius=12),
             page_config,
             sync_page    
             ],
@@ -158,6 +174,10 @@ def main(page):
    
 if __name__ == '__main__':
     #tray_icon_minimize.run_detached(setup=my_setup)
+    if not os.path.exists(f"{pathlib.Path().absolute()}\\tmp"):
+        os.mkdir(f"{pathlib.Path().absolute()}\\tmp")
+    if not os.path.exists(f"{pathlib.Path().absolute()}\\zip"):
+        os.mkdir(f"{pathlib.Path().absolute()}\\zip") 
     ft.app(main) 
      
 

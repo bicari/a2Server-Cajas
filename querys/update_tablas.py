@@ -9,7 +9,7 @@ from datetime import datetime
 
 class sqlQuerys:
     def __init__(self, dsn= None):
-        self.dsn = pyodbc.connect(f'DSN={dsn}')
+        self.dsn = pyodbc.connect(dsn)
         
         #self.string = self.search_database_files() 
 
@@ -42,6 +42,11 @@ class sqlQuerys:
             print(e)
             return False
 
+    def update_tablas_locales(self, auto_so, auto_sd):
+        try:
+            print(auto_so, auto_sd)
+        except Exception as e:    
+            print(e)
     def filter_client(self, id:str):
         clients = self.connection().execute(f"SELECT FC_CODIGO FROM SCLIENTES WHERE FC_CODIGO = '{id}'").fetchall()
         for client in clients:

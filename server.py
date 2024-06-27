@@ -5,9 +5,9 @@ import uvicorn.server
 import uvicorn.config
 import os
 import base64
-from read_ini import getKeys
+from functions import getKeys
 
-from functions.search_tables import search_database_files
+from functions import search_database_files
 
 server_sio = socketio.AsyncServer(async_mode='asgi',  logger=True, always_connect=False, cors_allowed_origins = '*', Engineio_logger=True, ping_timeout=60, ping_interval=30)
 app = socketio.ASGIApp(server_sio)
@@ -35,8 +35,8 @@ class NamespaceServer(socketio.AsyncNamespace):
                     iter += 1
         
 
-    async def on_get_data_cajas(self, data: dict):
-         pass
+    async def on_send_data(self, data: dict):
+         await server_sio.emit('update_so_sd', data={'soperacion_auto': 1, 'sdetalle_auto': 2}, namespace='/default')
 
     async def on_update_tablas(self, sid):
        server_sio.start_background_task(self.start_task)

@@ -1,6 +1,7 @@
 import flet as ft
 import re
 import os
+from functions import saveInitConfig
 class ConfigPage(ft.Container):
     def __init__(self, page: ft.Page, config, btn_save_data: ft.FloatingActionButton):
         super().__init__()
@@ -19,15 +20,20 @@ class ConfigPage(ft.Container):
         self.column =  ft.Column([self.text_field_ruta_local, self.text_field_IP, self.text_field_PORT, self.container_serie,self.dropdown_series, self.btn_save_data], expand=True)
         self.visible = True
         self.content = self.column
-        self.bgcolor = ft.colors.CYAN_800
+        self.bgcolor = '#474b4e'
         self.border_radius = 12
         self.expand = True
 
     
     
-    def validate_data_fields(self):
-        return True
-        pass 
+    def result_data_save(self):
+        result_change = saveInitConfig(server_ip=self.text_field_IP.value, port=self.text_field_PORT.value, 
+                                       serie=self.dropdown_series.value, ruta_local=self.text_field_ruta_local.value)
+        
+        if result_change == True:
+            return True
+        else:
+            return result_change 
 
     def click_save_data(self, e: ft.ControlEvent):
         ip_regex = r'^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$'
@@ -51,14 +57,18 @@ class ConfigPage(ft.Container):
             self.page.update()
         
         elif not self.text_field_PORT.value.isdigit() or int(self.text_field_PORT.value) > 65535:
-                self.message_error_type_data_field.content = ft.Text('El puerto especificado no esta disponible')
+                self.message_error_type_data_field.content = ft.Text('El rango de puertos permitidos es de [1:65535]')
                 self.message_error_type_data_field.open = True
                 self.text_field_PORT.focused_border_color = ft.colors.RED_300
                 self.text_field_PORT.focus()
                 self.page.overlay.append(self.message_error_type_data_field)
                 self.page.update()         
         else:
-            self.message_save_data = ft.SnackBar(ft.Text('Cambios guardados con éxito!') ,action='Alright!', visible=True, duration=4000)
+            result = self.result_data_save()
+            if result == True:
+                self.message_save_data = ft.SnackBar(ft.Text('Cambios guardados con éxito!') ,action='Alright!', visible=True, duration=4000, bgcolor=ft.colors.GREEN_300)
+            else:
+                self.message_save_data = ft.SnackBar(ft.Text('Error al intentar guardar los cambios, verifique que el archivo .ini exista'), visible=True, duration=5000, bgcolor=ft.colors.RED_300)    
             self.message_save_data.open = True
             self.page.overlay.append(self.message_save_data)
             self.page.update()
