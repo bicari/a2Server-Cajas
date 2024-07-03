@@ -2,7 +2,7 @@ import flet as ft
 from socketio import AsyncClient
 import asyncio
 class SyncPage(ft.Container):
-    def __init__(self, page: ft.Page, client_socket: AsyncClient, list_view_send_data: ft.ListView):
+    def __init__(self, page: ft.Page, client_socket: AsyncClient, list_view_send_data: ft.ListView, progress_ring: ft.ProgressRing):
         super().__init__()
         self.page = page
         self.list_view_data = list_view_send_data
@@ -18,17 +18,17 @@ class SyncPage(ft.Container):
         self.visible = False
         self.async_client = client_socket
         self.send_message = ft.SnackBar(ft.Text(), visible=True, duration=4000, bgcolor=ft.colors.RED_300)
-        self.progress_ring = ft.ProgressRing(width=80, height=80, stroke_width=6)
+        self.progress_ring = progress_ring
 
     async def emit_send_data(self):#Funcion asincrona(Corrutina) que emite el evento de envio de datos al server
         try:
             await self.async_client.emit('update_so_sd_local', namespace='/default')
             self.container_list_view.visible = True
             self.list_view_data.controls.append(ft.Text('Ejecutando solicitud, esperando respuesta del servidor'))
-            self.page.overlay.append(ft.Column(controls=[self.progress_ring], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.END, expand=True, width=600))
-            #self.send_message.content = self.progress_ring
-            #self.send_message.open = True
-            #self.page.overlay.append(self.send_message)
+            self.page.overlay.append(ft.Column(controls=[self.progress_ring], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.END, expand=True, width=650))
+            self.send_message.content = self.progress_ring
+            
+            
             
             self.page.update()
         except Exception as e:

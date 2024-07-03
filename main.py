@@ -1,10 +1,10 @@
 import flet as ft
 from PIL import Image
 import asyncio
-import threading
+import datetime
 #from client_cajas import init_client, caja
 import socketio
-import os
+import os, signal,sys
 import time
 import asyncio
 import socketio.exceptions
@@ -66,12 +66,13 @@ async def update_sinvdep(data: dict):
 
 @caja.on('update_so_sd', namespace='/default')
 async def update_soperacion_sdetalle_local(data:dict):
-    list_view_data_client.controls.append(ft.Text('Recibiendo datos del servidor'))
-    list_view_data_client.controls.append(ft.Text('Ejecutando actualizacion'))
-    list_view_data_client.controls.append(ft.Text('Actualizacion realizada'))
-    list_view_data_client.controls.append(ft.Text('Preparado para enviar datos'))
+    await caja.sleep(2.5)
+    list_view_data_client.controls.append(ft.Text('{hora} Recibiendo datos del servidor'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+    list_view_data_client.controls.append(ft.Text('{hora} Ejecutando actualizacion'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+    list_view_data_client.controls.append(ft.Text('{hora} Actualizacion realizada'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+    list_view_data_client.controls.append(ft.Text('{hora} Preparado para enviar datos'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
     await caja.emit('succes_update_local', data={'type': True}, namespace='/default')
-    list_view_data_client.controls.append(ft.Text('Enviando datos, por favor espere'))
+    list_view_data_client.controls.append(ft.Text('{hora} Enviando datos, por favor espere'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
     p.update()
     auto_so = data['soperacion_auto']
     auto_sd = data['sdetalle_auto']
@@ -80,7 +81,9 @@ async def update_soperacion_sdetalle_local(data:dict):
 
 @caja.on('send_data_sales', namespace='/default')
 async def send_files_sales(data: dict):
-    list_view_data_client.controls.append(ft.Text('datos enviados con éxito'))
+    list_view_data_client.controls.append(ft.Text('2023-02-16 14:30:45 datos enviados con éxito'))
+    progress_ring.visible = False
+    
     p.update()    
 
 @caja.on('connect', namespace='/default')
@@ -88,8 +91,9 @@ async def connect():
     badge_connection.bgcolor = 'green'
     snack_bar_msg_connection.content = ft.Text('Conectado al servidor')
     snack_bar_msg_connection.open = True
+    snack_bar_msg_connection.bgcolor = ft.colors.GREEN_300
     p.update()
-    tray_icon_minimize.icon = Image.open("images\\Conectado.png")
+    tray_icon_minimize.icon = Image.open("assets\\Conectado.png")
     try:
         print('Estoy conectado')
         #caja.start_background_task(search_sales)
@@ -104,10 +108,11 @@ async def disconnect():
     snack_bar_msg_connection.content = ft.Text('Desconectado del servidor')
     snack_bar_msg_connection.open = True
     p.update()
-    tray_icon_minimize.icon = Image.open("images\\Desconectado.png")    
+    tray_icon_minimize.icon = Image.open("assets\\Desconectado.png")    
 
 async def init_client():
     try:
+        
         await caja.connect(f'http://{config[0]}:{config[1]}', namespaces='/default', headers={'serie': f'{config[3].upper()}'}, transports=['polling', 'websocket'])
         await caja.wait()
        
@@ -123,38 +128,70 @@ async def init_client():
 
 
 def window_event(e):
+    print(e)
     if e.data == 'minimize':
         p.window.skip_task_bar = True
         tray_icon_minimize.visible = True
-    p.update()    
-        
-def entry_connect():
-    asyncio.run(init_client())
+        p.update() 
+    if e.data == 'close':
+        confirm_close_dialog.open = True
+        p.overlay.append(confirm_close_dialog)
+        p.open(confirm_close_dialog)
+        print('eee')
+        p.update()
+    
+            
+    
 
+async def close_window(e):
+    print('cerrado')   
 
-def main(page):
+async def modal_yes_click(e):
+    #await caja.emit(event='disconnect_user', namespace='/default')
+    await caja.disconnect()
+    p.window.destroy()
+ 
+    
+    
+    
+
+def modal_no_click(e):
+    confirm_close_dialog.open = False
+    p.update()
+
+async def main(page):
     global p
     p = page
-    global tray_icon_minimize
-    tray_icon_minimize = Icon( title='App de sincronizacion', icon=Image.open("images\\Conectado.png"), page=p)
+    
+    global tray_icon_minimize, confirm_close_dialog
+    confirm_close_dialog = ft.AlertDialog(modal=True, title=ft.Text('Por favor confirme'), content=ft.Text('Desea cerrar la app?'), actions=[ft.ElevatedButton('Sí', on_click=modal_yes_click
+                                                                                                                                                                    ), ft.OutlinedButton('No', on_click=modal_no_click)],
+                                                                                                                                                                    actions_alignment=ft.MainAxisAlignment.END)
+    tray_icon_minimize = Icon( title='App de sincronizacion', icon=Image.open("assets\\Desconectado.png"), page=p)
     p.window.max_height = 400
     p.window.min_height= 400
     p.window.min_width= 400
+    p.window.prevent_close = True
+    #p.run_thread(entry_connect)
     p.window.on_event = window_event
+    p.theme_mode = ft.ThemeMode.DARK
     print(p.window.height, p.window.width)
     p.window.maximizable = False
     p.window.resizable = False
-    hilo_connect = threading.Thread(target=entry_connect)    
-    hilo_connect.start()
+    #global hilo_connect
+    #hilo_connect = threading.Thread(target=entry_connect) 
+    #hilo_connect.start()
+    #print(hilo_connect.name, hilo_connect.native_id)
     global badge_connection
-    global snack_bar_msg_connection, list_view_data_client
+    global snack_bar_msg_connection, list_view_data_client, progress_ring
+    progress_ring = ft.ProgressRing(width=60, height=60, stroke_width=6, color=ft.colors.GREEN_300)
     list_view_data_client = ft.ListView([], spacing=10, padding=20, auto_scroll=True)
     snack_bar_msg_connection = ft.SnackBar(ft.Text() ,action='Alright!', visible=True, duration=4000)#Mensaje de conexion al servidor establecida
     p.overlay.append(snack_bar_msg_connection)
     badge_connection = ft.Badge(content=ft.Icon(ft.icons.ONLINE_PREDICTION), bgcolor=ft.colors.RED, alignment=ft.alignment.center,small_size=10)
     btn_save_data = ft.FloatingActionButton("Guardar", icon=ft.icons.SAVE, visible=False)  
     page_config = ConfigPage(page=p, config=config, btn_save_data=btn_save_data)
-    sync_page = SyncPage(page=p, client_socket=caja, list_view_send_data=list_view_data_client)
+    sync_page = SyncPage(page=p, client_socket=caja, list_view_send_data=list_view_data_client, progress_ring=progress_ring)
     buttons_sidebar= GrupoContenedores(page=p, badge=badge_connection, page_container_to_show_settings=page_config, page_container_to_show_sync=sync_page).control_group
     
     
@@ -168,7 +205,8 @@ def main(page):
                 ft.Column(controls=buttons_sidebar, horizontal_alignment=ft.CrossAxisAlignment.CENTER, width=80,expand=True), 
                 bgcolor='#474b4e', border_radius=12),
             page_config,
-            sync_page    
+            sync_page
+                
             ],
             expand=True
             #ft.Row([ft.Container(bgcolor='white', expand=True)], expand=True)
@@ -176,13 +214,15 @@ def main(page):
          
         
     )
-   
+    
+    await init_client()
 if __name__ == '__main__':
     #tray_icon_minimize.run_detached(setup=my_setup)
     if not os.path.exists(f"{pathlib.Path().absolute()}\\tmp"):
         os.mkdir(f"{pathlib.Path().absolute()}\\tmp")
     if not os.path.exists(f"{pathlib.Path().absolute()}\\zip"):
         os.mkdir(f"{pathlib.Path().absolute()}\\zip") 
-    ft.app(main) 
+    ft.app(main)
+    
      
 

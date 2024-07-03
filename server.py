@@ -47,6 +47,14 @@ class NamespaceServer(socketio.AsyncNamespace):
     async def on_update_tablas(self, sid):
        server_sio.start_background_task(self.start_task)
 
+    #async def on_disconnect_user(self, sid):
+     #    await server_sio.disconnect(sid=sid)
+     #    for i in connected_clients:
+     #         if sid in i.keys():
+     #           connected_clients.remove(i)
+     #    print(connected_clients)        
+     #    print(f'user {sid} desconectado')  
+
     async def on_connect(self, sid, environ):
         self.headers_client_serie = environ['asgi.scope']['headers'][1][1].decode('utf-8')
         if len(connected_clients) > 0 :
