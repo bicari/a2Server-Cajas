@@ -17,19 +17,30 @@ class SyncPage(ft.Container):
         self.bgcolor = '#474b4e'
         self.visible = False
         self.async_client = client_socket
+        self.send_message = ft.SnackBar(ft.Text(), visible=True, duration=4000, bgcolor=ft.colors.RED_300)
+        self.progress_ring = ft.ProgressRing(width=80, height=80, stroke_width=6)
 
     async def emit_send_data(self):#Funcion asincrona(Corrutina) que emite el evento de envio de datos al server
-        await self.async_client.emit('send_data', namespace='/default')
+        try:
+            await self.async_client.emit('update_so_sd_local', namespace='/default')
+            self.container_list_view.visible = True
+            self.list_view_data.controls.append(ft.Text('Ejecutando solicitud, esperando respuesta del servidor'))
+            self.page.overlay.append(ft.Column(controls=[self.progress_ring], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.END, expand=True, width=600))
+            #self.send_message.content = self.progress_ring
+            #self.send_message.open = True
+            #self.page.overlay.append(self.send_message)
+            
+            self.page.update()
+        except Exception as e:
+             self.send_message.content = ft.Text('Error de transmision, no conectado al servidor {}'.format(e))
+             self.send_message.open = True
+             self.page.overlay.append(self.send_message)
+             self.page.update()   
+             
 
     def entry_emit_send_data(self):#Entrada a la funcion asincrona
         asyncio.run(self.emit_send_data())    
 
     def clic_btn_sync_data(self, e):
         self.entry_emit_send_data()
-        count = 0
-        self.container_list_view.visible = True
-        #self.list_view_data.visible = True
-        for i in range(0,120):
-            self.list_view_data.controls.append(ft.Text(f'line 2222222222222222222222222222222                                        final{count}', color='#e4e4e5'))
-            count +=1
-        self.page.update()    
+       

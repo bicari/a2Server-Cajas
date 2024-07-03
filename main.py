@@ -66,16 +66,22 @@ async def update_sinvdep(data: dict):
 
 @caja.on('update_so_sd', namespace='/default')
 async def update_soperacion_sdetalle_local(data:dict):
+    list_view_data_client.controls.append(ft.Text('Recibiendo datos del servidor'))
+    list_view_data_client.controls.append(ft.Text('Ejecutando actualizacion'))
+    list_view_data_client.controls.append(ft.Text('Actualizacion realizada'))
+    list_view_data_client.controls.append(ft.Text('Preparado para enviar datos'))
+    await caja.emit('succes_update_local', data={'type': True}, namespace='/default')
+    list_view_data_client.controls.append(ft.Text('Enviando datos, por favor espere'))
+    p.update()
     auto_so = data['soperacion_auto']
     auto_sd = data['sdetalle_auto']
-    result = sqlQuerys(dsn=PATH_DSN_ODBC).update_tablas_locales(auto_so, auto_sd)
+    print(auto_sd)
+    #result = sqlQuerys(dsn=PATH_DSN_ODBC).update_tablas_locales(auto_so, auto_sd)
 
 @caja.on('send_data_sales', namespace='/default')
 async def send_files_sales(data: dict):
-    if data['serie'] == config[3]: #SERIE
-        pass
-    else:
-        pass    
+    list_view_data_client.controls.append(ft.Text('datos enviados con éxito'))
+    p.update()    
 
 @caja.on('connect', namespace='/default')
 async def connect():
@@ -86,7 +92,6 @@ async def connect():
     tray_icon_minimize.icon = Image.open("images\\Conectado.png")
     try:
         print('Estoy conectado')
-        await asyncio.sleep(5)
         #caja.start_background_task(search_sales)
         #await caja.emit('update_tablas', namespace='/default')
     except socketio.exceptions.ConnectionError:
@@ -143,7 +148,7 @@ def main(page):
     hilo_connect.start()
     global badge_connection
     global snack_bar_msg_connection, list_view_data_client
-    list_view_data_client = ft.ListView([], spacing=10, padding=20)
+    list_view_data_client = ft.ListView([], spacing=10, padding=20, auto_scroll=True)
     snack_bar_msg_connection = ft.SnackBar(ft.Text() ,action='Alright!', visible=True, duration=4000)#Mensaje de conexion al servidor establecida
     p.overlay.append(snack_bar_msg_connection)
     badge_connection = ft.Badge(content=ft.Icon(ft.icons.ONLINE_PREDICTION), bgcolor=ft.colors.RED, alignment=ft.alignment.center,small_size=10)

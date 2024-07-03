@@ -9,7 +9,7 @@ from functions import getKeys
 
 from functions import search_database_files
 
-server_sio = socketio.AsyncServer(async_mode='asgi',  logger=True, always_connect=False, cors_allowed_origins = '*', Engineio_logger=True, ping_timeout=60, ping_interval=30)
+server_sio = socketio.AsyncServer(async_mode='asgi',  logger=True, always_connect=False, cors_allowed_origins = '*', Engineio_logger=True)
 app = socketio.ASGIApp(server_sio)
 connected_clients = list()
 
@@ -35,8 +35,14 @@ class NamespaceServer(socketio.AsyncNamespace):
                     iter += 1
         
 
-    async def on_send_data(self, data: dict):
-         await server_sio.emit('update_so_sd', data={'soperacion_auto': 1, 'sdetalle_auto': 2}, namespace='/default')
+    async def on_update_so_sd_local(self, sid):
+         await server_sio.emit('update_so_sd', data={'soperacion_auto': 1, 'sdetalle_auto': 2}, to=sid, namespace='/default')
+
+    async def on_succes_update_local(self, sid, data: dict):
+         if data['type'] == True:
+              await server_sio.emit('send_data_sales', data={}, to=sid, namespace='/default')
+         else:
+              await server_sio.emit('send_data_faile', data={}, to=sid, namespace='/default')     
 
     async def on_update_tablas(self, sid):
        server_sio.start_background_task(self.start_task)
@@ -61,7 +67,7 @@ class NamespaceServer(socketio.AsyncNamespace):
          print(connected_clients)       
              
 server_sio.register_namespace(NamespaceServer('/default')) 
-server_sio.register_namespace(NamespaceServer('*'))          
+         
          
 
 # for serie in getKeys():#Obteniendo series disponibles de las cajas, y creando instancias de namespaces
