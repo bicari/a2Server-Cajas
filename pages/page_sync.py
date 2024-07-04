@@ -1,6 +1,7 @@
 import flet as ft
 from socketio import AsyncClient
 import asyncio
+import datetime
 class SyncPage(ft.Container):
     def __init__(self, page: ft.Page, client_socket: AsyncClient, list_view_send_data: ft.ListView, progress_ring: ft.ProgressRing):
         super().__init__()
@@ -24,12 +25,9 @@ class SyncPage(ft.Container):
         try:
             await self.async_client.emit('update_so_sd_local', namespace='/default')
             self.container_list_view.visible = True
-            self.list_view_data.controls.append(ft.Text('Ejecutando solicitud, esperando respuesta del servidor'))
+            self.list_view_data.controls.append(ft.Text('{hora} Ejecutando solicitud, esperando respuesta del servidor'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
             self.page.overlay.append(ft.Column(controls=[self.progress_ring], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.END, expand=True, width=650))
             self.send_message.content = self.progress_ring
-            
-            
-            
             self.page.update()
         except Exception as e:
              self.send_message.content = ft.Text('Error de transmision, no conectado al servidor {}'.format(e))

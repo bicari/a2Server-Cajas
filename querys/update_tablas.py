@@ -42,11 +42,31 @@ class sqlQuerys:
             print(e)
             return False
 
-    def update_tablas_locales(self, auto_so, auto_sd):
+    async def update_tablas_locales(self, auto_so, auto_sd):
         try:
             print(auto_so, auto_sd)
+            self.connection().execute(f"""UPDATE SOPERACIONINV SET FTI_AUTOINCREMENT = FTI_AUTOINCREMENT + {auto_so}""")
+            self.connection().execute(f"""UPDATE SDETALLEVENTA SET FDI_AUTOINCREMENT = FDI_AUTOINCREMENT + {auto_sd}""")
+            self.connection().execute(f"""UPDATE SDETALLEVENTA SET FDI_OPERACION_AUTOINCREMENT = FTI_AUTOINCREMENT
+                                          FROM SDETALLEVENTA 
+                                          INNER JOIN SOPERACIONINV ON FTI_DOCUMENTO = FDI_DOCUMENTO
+                                          WHERE FDI_DOCUMENTO = FTI_DOCUMENTO""")
+            self.connection().commit()
+            
+            self.connection().close()
         except Exception as e:    
             print(e)
+
+    async def max_Auto(self) -> tuple | Exception:
+        try:
+            max_auto = self.connection().execute("SELECT MAX(FTI_AUTOINCREMENT) FROM SOPERACIONINV").fetchone()[0]
+            max_auto_detalle = self.connection().execute("SELECT MAX(FDI_AUTOINCREMENT) FROM SDETALLEVENTA").fetchone()[0]
+            self.connection().close()
+            return (max_auto , max_auto_detalle)
+        except Exception as e:
+            return e
+        
+
     def filter_client(self, id:str):
         clients = self.connection().execute(f"SELECT FC_CODIGO FROM SCLIENTES WHERE FC_CODIGO = '{id}'").fetchall()
         for client in clients:

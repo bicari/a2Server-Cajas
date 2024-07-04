@@ -17,4 +17,15 @@ async def search_database_files()  -> bool :
         except Exception as e:
              return False
 
-
+async def search_local_tables(path_files) -> bool:
+     try:
+          LIST_TABLES_LOCAL = ['SDetalleVenta', 'SOperacionInv']
+          file_compress =  zipfile.ZipFile('zip\\data_local.zip', 'w')
+          files =  next(os.walk(path_files))[2]
+          for file in files:
+               if file[:-4] in LIST_TABLES_LOCAL and file.endswith(('.idx', '.dat', '.blb')):
+                    file_compress.write(filename='{path}{file_name}'.format(path=path_files +'\\' , file_name=file), arcname=file, compress_type=zipfile.ZIP_DEFLATED)
+          return True  
+     except Exception as e:     
+          return False
+     

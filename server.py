@@ -6,18 +6,23 @@ import uvicorn.config
 import os
 import base64
 from functions import getKeys
+from querys import sqlQuerys
 
 from functions import search_database_files
 
-server_sio = socketio.AsyncServer(async_mode='asgi',  logger=True, always_connect=False, cors_allowed_origins = '*', Engineio_logger=True)
+server_sio = socketio.AsyncServer(async_mode='asgi',  logger=True, always_connect=False, cors_allowed_origins = '*', Engineio_logger=True, ping_timeout=60, ping_interval=30)
 app = socketio.ASGIApp(server_sio)
 connected_clients = list()
+lists_file_clients = []
 
 class NamespaceServer(socketio.AsyncNamespace):
     def __init__(self, namespace):
         super().__init__(namespace)
-        self.namespace = namespace #Espacio de nombre donde el cliente se conectara el cual sera unico para cada caja conectada
+        self.namespace = namespace #Espacio de nombre general
 
+
+    async def on_recv_data_tables_client(self, sid, data:dict):
+         lists_file_clients.append(base64.b64decode(data['file']))#Decodificando partes de archivo segun codificacion base64
 
     async def start_task(self):
         max_size_file = 1024*1024
@@ -36,7 +41,11 @@ class NamespaceServer(socketio.AsyncNamespace):
         
 
     async def on_update_so_sd_local(self, sid):
-         await server_sio.emit('update_so_sd', data={'soperacion_auto': 1, 'sdetalle_auto': 2}, to=sid, namespace='/default')
+         MAXAUTO = await sqlQuerys('DSN=A2GKC').max_Auto()
+         if type(MAXAUTO) == Exception:
+               await server_sio.emit('update_so_sd', data={'soperacion_auto': 'error', 'sdetalle_auto': 'error'}, to=sid, namespace='/default')
+         else:
+               await server_sio.emit('update_so_sd', data={'soperacion_auto': MAXAUTO[0], 'sdetalle_auto': MAXAUTO[1]}, to=sid, namespace='/default')    
 
     async def on_succes_update_local(self, sid, data: dict):
          if data['type'] == True:

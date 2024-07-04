@@ -10,7 +10,7 @@ import asyncio
 import socketio.exceptions
 from controls import GrupoContenedores
 import pathlib
-from functions import getConfigClient
+from functions import getConfigClient, search_local_tables
 import base64
 import sys
 from querys.update_tablas import sqlQuerys
@@ -21,7 +21,7 @@ from querys import sqlQuerys
 
  
 p : ft.Page
-caja = socketio.AsyncClient( reconnection=True, logger=True)
+caja = socketio.AsyncClient( reconnection=False, logger=True)
 list_file = []
 config =  getConfigClient()
 PATH_DSN_ODBC =r"""DSN=A2GKC;DRIVER={path};ConnectionType=Local;RemoteIPAddress=127.0.0.1;RemotePort=12005;RemoteCompression=0;
@@ -69,19 +69,20 @@ async def update_soperacion_sdetalle_local(data:dict):
     await caja.sleep(2.5)
     list_view_data_client.controls.append(ft.Text('{hora} Recibiendo datos del servidor'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
     list_view_data_client.controls.append(ft.Text('{hora} Ejecutando actualizacion'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
-    list_view_data_client.controls.append(ft.Text('{hora} Actualizacion realizada'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
-    list_view_data_client.controls.append(ft.Text('{hora} Preparado para enviar datos'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+    await sqlQuerys(PATH_DSN_ODBC).update_tablas_locales(auto_sd=data['sdetalle_auto'], auto_so=data['soperacion_auto'])
+    
     await caja.emit('succes_update_local', data={'type': True}, namespace='/default')
-    list_view_data_client.controls.append(ft.Text('{hora} Enviando datos, por favor espere'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+  
     p.update()
-    auto_so = data['soperacion_auto']
-    auto_sd = data['sdetalle_auto']
-    print(auto_sd)
+   
     #result = sqlQuerys(dsn=PATH_DSN_ODBC).update_tablas_locales(auto_so, auto_sd)
 
 @caja.on('send_data_sales', namespace='/default')
 async def send_files_sales(data: dict):
-    list_view_data_client.controls.append(ft.Text('2023-02-16 14:30:45 datos enviados con éxito'))
+    list_view_data_client.controls.append(ft.Text('{hora} Actualizacion realizada'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+    list_view_data_client.controls.append(ft.Text('{hora} Preparado para enviar datos'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+    await search_local_tables(config[2])
+    list_view_data_client.controls.append(ft.Text('{hora} Enviando datos, por favor espere'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
     progress_ring.visible = False
     
     p.update()    
@@ -108,8 +109,15 @@ async def disconnect():
     snack_bar_msg_connection.content = ft.Text('Desconectado del servidor')
     snack_bar_msg_connection.open = True
     p.update()
-    tray_icon_minimize.icon = Image.open("assets\\Desconectado.png")    
-
+    tray_icon_minimize.icon = Image.open("assets\\Desconectado.png")
+    
+    while not caja.connected:
+            try:
+                await caja.connect(f'http://{config[0]}:{config[1]}', namespaces='/default', headers={'serie': f'{config[3].upper()}'}, transports=['polling', 'websocket'])
+                await caja.wait()
+            except Exception as e:
+                print(e)
+                asyncio.sleep(3)    
 async def init_client():
     try:
         
@@ -148,8 +156,10 @@ async def close_window(e):
 
 async def modal_yes_click(e):
     #await caja.emit(event='disconnect_user', namespace='/default')
-    await caja.disconnect()
     p.window.destroy()
+    await caja.disconnect()
+    
+    
  
     
     
