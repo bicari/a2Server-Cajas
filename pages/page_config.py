@@ -5,9 +5,10 @@ from functions import saveInitConfig
 class ConfigPage(ft.Container):
     def __init__(self, page: ft.Page, config, btn_save_data: ft.FloatingActionButton):
         super().__init__()
-        self.init_config = config # [0]IP [1]PORT [2]rutalocal [3]SERIEACTUAL [4]SERIES
+        self.init_config = config # [0]IP [1]PORT [2]rutalocal [3]SERIEACTUAL [4]SERIES [5]ruta a2
         self.page = page
         self.text_field_ruta_local = ft.TextField(config[2], label='Ruta a2Cash Local', max_length=100, offset=ft.Offset(0,0.2), border_radius=12, width=400, autofocus=True)
+        self.text_field_ruta_a2data = ft.TextField(config[5], label='Ruta a2Data', max_length=100, offset=ft.Offset(0,0.2), border_radius=12, width=400, autofocus=True)
         self.text_field_IP = ft.TextField(config[0], label='Server IP',  max_length=100,  offset=ft.Offset(0,0.2), border_radius=12)
         self.text_field_PORT = ft.TextField(config[1], label='Puerto Servidor', max_length=100, offset=ft.Offset(0,0.2), border_radius=12)
         self.container_serie = ft.Container(ft.Text('Series Disponibles') ,offset=ft.Offset(0,0.2), border_radius=12)
@@ -17,7 +18,7 @@ class ConfigPage(ft.Container):
         self.btn_save_data = ft.IconButton(ft.icons.SAVE_ALT_ROUNDED, icon_color=ft.colors.BLUE_400, icon_size=50, tooltip='Guardar Cambios', on_click=self.click_save_data)
         #self.page.floating_action_button = ft.ElevatedButton("Guardar", icon=ft.icons.SAVE, visible=False, on_click=self.click_save_data)
         
-        self.column =  ft.Column([self.text_field_ruta_local, self.text_field_IP, self.text_field_PORT, self.container_serie,self.dropdown_series, self.btn_save_data], expand=True)
+        self.column =  ft.Column([self.text_field_ruta_local, self.text_field_ruta_a2data, self.text_field_IP, self.text_field_PORT, self.container_serie,self.dropdown_series, self.btn_save_data], expand=True)
         self.visible = True
         self.content = self.column
         self.bgcolor = '#474b4e'
@@ -28,7 +29,7 @@ class ConfigPage(ft.Container):
     
     def result_data_save(self):
         result_change = saveInitConfig(server_ip=self.text_field_IP.value, port=self.text_field_PORT.value, 
-                                       serie=self.dropdown_series.value, ruta_local=self.text_field_ruta_local.value)
+                                       serie=self.dropdown_series.value, ruta_local=self.text_field_ruta_local.value, ruta_a2=self.text_field_ruta_a2data.value)
         
         if result_change == True:
             return True
@@ -38,8 +39,7 @@ class ConfigPage(ft.Container):
     def click_save_data(self, e: ft.ControlEvent):
         ip_regex = r'^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$'
         self.message_error_type_data_field = ft.SnackBar(ft.Text(), visible=True, duration=4000, bgcolor=ft.colors.RED_300)
-
-        if not os.path.exists(self.text_field_ruta_local.value + '\sempresas.dat') and self.text_field_ruta_local.label == 'Ruta a2Cash Local':
+        if not os.path.exists(os.path.dirname(self.text_field_ruta_local.value)  + '\\sempresas.dat') and self.text_field_ruta_local.label == 'Ruta a2Cash Local':
                 self.message_error_type_data_field.content = ft.Text('El directorio especificado no existe o no se encuentra el archivo {Sempresas.dat}')
                 self.message_error_type_data_field.open = True
                 self.page.overlay.append(self.message_error_type_data_field)
