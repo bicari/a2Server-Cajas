@@ -41,9 +41,10 @@ def getConfigClient():
     rutalocal = client.get('CONFIG', 'RUTALOCAL')
     serie = client.get('CONFIG', 'SERIEACTUAL')
     series = client.get('CONFIG', 'SERIES')
-    return ip, port, rutalocal, serie.upper(), series.upper().split(',')
+    a2data = client.get('CONFIG', 'RUTA_A2')
+    return ip, port, rutalocal, serie.upper(), series.upper().split(','),  a2data
 
-def saveInitConfig(server_ip, port, serie, ruta_local):
+def saveInitConfig(server_ip, port, serie, ruta_local, ruta_a2):
     try:
         file = configparser.ConfigParser(strict=True)
         file.read('client.ini')
@@ -51,6 +52,7 @@ def saveInitConfig(server_ip, port, serie, ruta_local):
         file['CONFIG']['PORT'] = port
         file['CONFIG']['SERIEACTUAL'] = serie
         file['CONFIG']['RUTALOCAL'] = ruta_local
+        file['CONFIG']['RUTA_A2'] = ruta_a2
         with open('client.ini', 'w') as file_ini:
             file.write(file_ini)
         return True    
