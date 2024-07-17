@@ -14,6 +14,7 @@ server_sio = socketio.AsyncServer(async_mode='asgi',  logger=True, always_connec
 app = socketio.ASGIApp(server_sio)
 connected_clients = list()
 lists_file_clients = []
+tasks = []
 
 class NamespaceServer(socketio.AsyncNamespace):
     def __init__(self, namespace):
@@ -24,7 +25,14 @@ class NamespaceServer(socketio.AsyncNamespace):
     async def on_recv_data_tables_client(self, sid, data:dict):
          lists_file_clients.append(base64.b64decode(data['file']))#Decodificando partes de archivo segun codificacion base64
 
-    async def start_task(self):
+    async def on_end_file_client(self, sid, data):
+          if data['iter_client'] == len(lists_file_clients):
+               file = b''.join(lists_file_clients)#Uniendo fragmentos de bytes de los archivos a un solo archivo
+               with open('zip\\data_partes_ventas.zip', 'wb') as file_zip:
+                    file_zip.write(file)#Escribiendo archivo comprimido
+          lists_file_clients.clear()
+
+    async def start_task(self, sid):
         max_size_file = 1024*1024
         iter = 0
         if await search_database_files() == True:
@@ -33,10 +41,10 @@ class NamespaceServer(socketio.AsyncNamespace):
                 while True:
                     bytes_file = file.read(max_size_file)
                     if not bytes_file:
-                         await server_sio.emit('end_file', data={'iter': iter}, namespace=self.namespace)
+                         await server_sio.emit('end_file', data={'iter': iter}, to=sid,namespace=self.namespace)
                          break
                     encoded_bytes_file = base64.b64encode(bytes_file)
-                    await server_sio.emit('recv_tables', data={'file': encoded_bytes_file}, namespace=self.namespace)
+                    await server_sio.emit('recv_tables', data={'file': encoded_bytes_file}, to=sid, namespace=self.namespace)
                     iter += 1
         
 
@@ -54,7 +62,15 @@ class NamespaceServer(socketio.AsyncNamespace):
               await server_sio.emit('send_data_faile', data={}, to=sid, namespace='/default')     
 
     async def on_update_tablas(self, sid):
-       server_sio.start_background_task(self.start_task)
+       #server_sio.start_background_task(self.start_task)
+       tarea = asyncio.create_task(self.start_task(sid=sid))
+       tasks.append(tarea)
+       if len(tasks) > 0:
+           result = await asyncio.gather(*tasks)
+           for a in result:
+                print(a)
+           tasks.clear()     
+
 
     #async def on_disconnect_user(self, sid):
      #    await server_sio.disconnect(sid=sid)
