@@ -4,13 +4,13 @@ import asyncio
 import datetime
 #from client_cajas import init_client, caja
 import socketio
-import os, signal,sys
+import os, sys
 import time
 import asyncio
 import socketio.exceptions
 from controls import GrupoContenedores
 import pathlib
-from functions import getConfigClient, search_local_tables
+from functions import getConfigClient, search_local_tables, decompress_file
 import base64
 import sys
 from querys.update_tablas import sqlQuerys
@@ -21,7 +21,7 @@ from querys import sqlQuerys
 
  
 p : ft.Page
-caja = socketio.AsyncClient( reconnection=False, logger=True)
+caja = socketio.AsyncClient(reconnection=False, logger=True)
 list_file = []
 config =  getConfigClient()
 PATH_DSN_ODBC =r"""DSN=A2GKC;DRIVER={path};ConnectionType=Local;RemoteIPAddress=127.0.0.1;RemotePort=12005;RemoteCompression=0;
@@ -57,9 +57,17 @@ async def decompress_data(data: dict):
 async def end_file(data: dict):
     if data['iter'] == len(list_file):       
         file = b''.join(list_file)#Uniendo fragmentos de bytes de los archivos a un solo archivo
-        with open('zip\\data_partes.zip', 'wb') as file_zip:
+        with open('zip\\data_partes_{sid_caja}.zip'.format(sid_caja=caja.sid), 'wb') as file_zip:
             file_zip.write(file)#Escribiendo archivo comprimido
+        if os.path.isfile('zip\\data_partes_{sid_caja}.zip'.format(sid_caja=caja.sid)):
+           if await decompress_file('zip\\data_partes.zip', config[2]):
+               snack_bar_msg_connection.content = ft.Text('Sincronización inicial culminada, data actualizada')
+               snack_bar_msg_connection.open = True
+               snack_bar_msg_connection.bgcolor = ft.colors.GREEN_300
+               p.update()
+
     list_file.clear()
+
 @caja.on('update_inventario', namespace='*')
 async def update_sinvdep(data: dict):
     print(data, 'test')
@@ -69,35 +77,52 @@ async def update_soperacion_sdetalle_local(data:dict):
     await caja.sleep(2.5)
     list_view_data_client.controls.append(ft.Text('{hora} Recibiendo datos del servidor'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
     list_view_data_client.controls.append(ft.Text('{hora} Ejecutando actualizacion'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
-    await sqlQuerys(PATH_DSN_ODBC).update_tablas_locales(auto_sd=data['sdetalle_auto'], auto_so=data['soperacion_auto'])
-    
-    await caja.emit('succes_update_local', data={'type': True}, namespace='/default')
-  
     p.update()
+    result_query = await sqlQuerys(PATH_DSN_ODBC).update_tablas_locales(auto_sd=data['sdetalle_auto'], auto_so=data['soperacion_auto'])
+    if result_query:
+        await caja.emit('succes_update_local', data={'type': True}, namespace='/default')
+        list_view_data_client.controls.append(ft.Text('{hora} Actualizacion realizada'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+        list_view_data_client.controls.append(ft.Text('{hora} Preparado para enviar datos'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+        p.update()
+    else:    
+        progress_ring.visible = False
+        snack_bar_msg_connection.content = ft.Text(result_query)
+        snack_bar_msg_connection.open = True
+        snack_bar_msg_connection.bgcolor = ft.colors.RED_300
+        p.update()    
    
     #result = sqlQuerys(dsn=PATH_DSN_ODBC).update_tablas_locales(auto_so, auto_sd)
 
 @caja.on('send_data_sales', namespace='/default')
 async def send_files_sales(data: dict):
-    list_view_data_client.controls.append(ft.Text('{hora} Actualizacion realizada'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
-    list_view_data_client.controls.append(ft.Text('{hora} Preparado para enviar datos'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
-    await search_local_tables(config[2])
-    list_view_data_client.controls.append(ft.Text('{hora} Enviando datos, por favor espere'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
-    progress_ring.visible = False
     
+    list_view_data_client.controls.append(ft.Text('{hora} Enviando datos, por favor espere'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+    if await search_local_tables(config[2]) == True: #Buscando tablas locales para enviar al server
+        iter = 0
+        with open('zip\\data_local.zip', 'rb') as file:
+            while True:
+                bytes_file_sales = file.read(1024*1024)
+                if not bytes_file_sales:
+                    await caja.emit('end_file_client', data={'iter_client': iter}, namespace='/default')
+                    list_view_data_client.controls.append(ft.Text('{hora} datos enviados con éxito'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+                    break
+                encoded_bytes = base64.b64encode(bytes_file_sales)
+                await caja.emit('recv_data_tables_client',  data={'file': encoded_bytes}, namespace='/default')
+                iter += 1
+    progress_ring.visible = False
     p.update()    
 
 @caja.on('connect', namespace='/default')
 async def connect():
     badge_connection.bgcolor = 'green'
-    snack_bar_msg_connection.content = ft.Text('Conectado al servidor')
+    snack_bar_msg_connection.content = ft.Text('Conectado al servidor, iniciando sincronización de archivos')
     snack_bar_msg_connection.open = True
     snack_bar_msg_connection.bgcolor = ft.colors.GREEN_300
     p.update()
     tray_icon_minimize.icon = Image.open("assets\\Conectado.png")
     try:
         print('Estoy conectado')
-        #caja.start_background_task(search_sales)
+        await asyncio.sleep(4)
         #await caja.emit('update_tablas', namespace='/default')
     except socketio.exceptions.ConnectionError:
         print('reconectando')
@@ -156,8 +181,9 @@ async def close_window(e):
 
 async def modal_yes_click(e):
     #await caja.emit(event='disconnect_user', namespace='/default')
+    await caja.eio.disconnect()
     p.window.destroy()
-    await caja.disconnect()
+    
     
     
  
@@ -225,7 +251,9 @@ async def main(page):
         
     )
     
-    await init_client()
+    asyncio.create_task(init_client())
+
+
 if __name__ == '__main__':
     #tray_icon_minimize.run_detached(setup=my_setup)
     if not os.path.exists(f"{pathlib.Path().absolute()}\\tmp"):
@@ -233,6 +261,5 @@ if __name__ == '__main__':
     if not os.path.exists(f"{pathlib.Path().absolute()}\\zip"):
         os.mkdir(f"{pathlib.Path().absolute()}\\zip") 
     ft.app(main)
-    
      
 
