@@ -10,7 +10,7 @@ import asyncio
 import socketio.exceptions
 from controls import GrupoContenedores
 import pathlib
-from functions import getConfigClient, search_local_tables, decompress_file
+from functions import getConfigClient, search_local_tables, decompress_file, show_modal_window, show_message_powershell, saveSyncData
 import base64
 import sys
 from querys.update_tablas import sqlQuerys
@@ -21,8 +21,10 @@ from querys import sqlQuerys
 
  
 p : ft.Page
-caja = socketio.AsyncClient(reconnection=False, logger=True)
-list_file = []
+caja = socketio.AsyncClient(reconnection=True, logger=True)
+list_file = [] 
+click_disconnect = False
+reconnection = False
 config =  getConfigClient()
 PATH_DSN_ODBC =r"""DSN=A2GKC;DRIVER={path};ConnectionType=Local;RemoteIPAddress=127.0.0.1;RemotePort=12005;RemoteCompression=0;
 RemotePing=False;RemotePingInterval=60;RemoteEncryption=False;RemoteEncryptionPassword=elevatesoft;RemoteReadAhead=50;CatalogName={catalogname};ReadOnly=False;
@@ -53,6 +55,7 @@ async def decompress_data(data: dict):
     list_file.append(base64.b64decode(data['file']))#Decodificando partes de archivo segun codificacion base64
     print(len(list_file))
 
+#Evento de sincronizacion de tablas al iniciar la app
 @caja.on('end_file', namespace='/default')
 async def end_file(data: dict):
     if data['iter'] == len(list_file):       
@@ -60,17 +63,32 @@ async def end_file(data: dict):
         with open('zip\\data_partes_{sid_caja}.zip'.format(sid_caja=caja.sid), 'wb') as file_zip:
             file_zip.write(file)#Escribiendo archivo comprimido
         if os.path.isfile('zip\\data_partes_{sid_caja}.zip'.format(sid_caja=caja.sid)):
-           if await decompress_file('zip\\data_partes.zip', config[2]):
+           if await decompress_file('zip\\data_partes_{sid_caja}.zip'.format(sid_caja = caja.sid), config[2]):
                snack_bar_msg_connection.content = ft.Text('Sincronización inicial culminada, data actualizada')
                snack_bar_msg_connection.open = True
                snack_bar_msg_connection.bgcolor = ft.colors.GREEN_300
                p.update()
+               #llamando a funcion que actualiza la tabla susuarios con los directorios locales
+               sqlQuerys(PATH_DSN_ODBC).update_susuarios(config[2])
+               saveSyncData(datetime.datetime.now().strftime("%Y-%m-%d"))
 
     list_file.clear()
 
 @caja.on('update_inventario', namespace='*')
 async def update_sinvdep(data: dict):
     print(data, 'test')
+
+@caja.on('clear_data_local', namespace='/default')
+async def clear_data_local():
+    result = await sqlQuerys(PATH_DSN_ODBC).clear_tablas_locales()
+    if result:
+        list_view_data_client.controls.append(ft.Text('{hora} Tablas locales de operaciones han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+        no_factura = await sqlQuerys(PATH_DSN_ODBC).get_serie_document_number(config[3])
+        print(no_factura)
+    else:
+        list_view_data_client.controls.append(ft.Text('{hora} ERROR:Tablas locales no han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")), color=ft.colors.RED_300))    
+    p.update()
+
 
 @caja.on('update_so_sd', namespace='/default')
 async def update_soperacion_sdetalle_local(data:dict):
@@ -91,7 +109,6 @@ async def update_soperacion_sdetalle_local(data:dict):
         snack_bar_msg_connection.bgcolor = ft.colors.RED_300
         p.update()    
    
-    #result = sqlQuerys(dsn=PATH_DSN_ODBC).update_tablas_locales(auto_so, auto_sd)
 
 @caja.on('send_data_sales', namespace='/default')
 async def send_files_sales(data: dict):
@@ -114,6 +131,11 @@ async def send_files_sales(data: dict):
 
 @caja.on('connect', namespace='/default')
 async def connect():
+    global reconnection
+    if reconnection:
+        show_message_powershell(r'reconnection_message.ps1')
+        reconnection = False
+        sqlQuerys("DSN=A2GKC; CatalogName={catalogname}.".format(catalogname=config[6])).update_sempresas_a2cash(path_data_local=config[5], path_local_formatos_config=os.path.dirname(config[5]))
     badge_connection.bgcolor = 'green'
     snack_bar_msg_connection.content = ft.Text('Conectado al servidor, iniciando sincronización de archivos')
     snack_bar_msg_connection.open = True
@@ -123,26 +145,36 @@ async def connect():
     try:
         print('Estoy conectado')
         await asyncio.sleep(4)
-        #await caja.emit('update_tablas', namespace='/default')
+        if config[7] != datetime.datetime.now().strftime("%Y-%m-%d"):
+            await caja.emit('update_tablas', namespace='/default')
     except socketio.exceptions.ConnectionError:
         print('reconectando')
         await asyncio.sleep(5)
 
 @caja.on('disconnect', namespace='/default')
 async def disconnect():
+    global reconnection
     badge_connection.bgcolor = 'red'
     snack_bar_msg_connection.content = ft.Text('Desconectado del servidor')
     snack_bar_msg_connection.open = True
     p.update()
     tray_icon_minimize.icon = Image.open("assets\\Desconectado.png")
-    
+    print(click_disconnect)
+    if click_disconnect == False:
+        show_modal_window(r'modal_desconexion.ps1')  
+        sqlQuerys('DSN=A2GKC; CatalogName={catalogname}'.format(catalogname=config[6])).update_sempresas_a2cash(path_data_local=config[2], path_local_formatos_config= os.path.dirname(config[2]))
+        show_message_powershell(r'show_message_contingencia.ps1')
+        reconnection = True
+
     while not caja.connected:
-            try:
-                await caja.connect(f'http://{config[0]}:{config[1]}', namespaces='/default', headers={'serie': f'{config[3].upper()}'}, transports=['polling', 'websocket'])
-                await caja.wait()
-            except Exception as e:
-                print(e)
-                asyncio.sleep(3)    
+        print('test')
+        try:
+            await caja.connect(f'http://{config[0]}:{config[1]}', namespaces='/default', headers={'serie': f'{config[3].upper()}'}, transports=['polling', 'websocket'])
+            await caja.wait()
+        except Exception as e:
+            print(e)
+            asyncio.sleep(3)    
+
 async def init_client():
     try:
         
@@ -168,7 +200,6 @@ def window_event(e):
         p.update() 
     if e.data == 'close':
         confirm_close_dialog.open = True
-        p.overlay.append(confirm_close_dialog)
         p.open(confirm_close_dialog)
         print('eee')
         p.update()
@@ -181,7 +212,9 @@ async def close_window(e):
 
 async def modal_yes_click(e):
     #await caja.emit(event='disconnect_user', namespace='/default')
-    await caja.eio.disconnect()
+    global click_disconnect
+    click_disconnect = True
+    await caja.disconnect()
     p.window.destroy()
     
     
@@ -211,7 +244,6 @@ async def main(page):
     #p.run_thread(entry_connect)
     p.window.on_event = window_event
     p.theme_mode = ft.ThemeMode.DARK
-    print(p.window.height, p.window.width)
     p.window.maximizable = False
     p.window.resizable = False
     #global hilo_connect
@@ -251,7 +283,8 @@ async def main(page):
         
     )
     
-    asyncio.create_task(init_client())
+    await init_client()
+    #asyncio.create_task(init_client())
 
 
 if __name__ == '__main__':
