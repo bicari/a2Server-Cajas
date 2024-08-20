@@ -1,21 +1,35 @@
-import asyncio
 import pyodbc
-import pathlib
-import os
 import time
-import glob
-import zipfile
 from datetime import datetime
+from os import path
 
 class sqlQuerys:
     def __init__(self, dsn= None):
         self.dsn = pyodbc.connect(dsn)
-        
-        #self.string = self.search_database_files() 
-
 
     def connection(self):
         return self.dsn    
+
+    def update_sempresas_a2cash(self, path_data_local, path_local_formatos_config):#Funcion que actualiza la tabla sempresas con los directorios locales FILECONFIG, CONFIGR, USERSCONFIG 
+        try:
+            self.connection().execute(f"""UPDATE SEMPRESAS SET FE_STATUS = 0, FE_DIRDATOS ='{path_data_local}', FE_DIRSISTEMA='{path_local_formatos_config}\\FILECONFIG', 
+                                      FE_DIRFORMAS='{path_local_formatos_config}\\USERSCONFIG', FE_DIRFORMATOS='{path_local_formatos_config}\\CONFIGR',
+                                      FE_TIPOCONEXION = 0""")
+            self.connection().commit()
+            self.connection().close()
+            print('Cerrando')
+        except Exception as e:
+            print(e)    
+
+    def update_susuarios(self, path_data_local):
+        try:
+            self.connection().execute(f"""UPDATE SUSUARIOS SET Directorio_Datos ='{path_data_local}', Directorio_Sistema ='{path.dirname(path_data_local)}\\FILECONFIG',
+                                      Directorio_Formas='{path.dirname(path_data_local)}\\USERSCONFIG', Directorio_Formatos = '{path.dirname(path_data_local)}\\CONFIGR',
+                                      Directorio_Local = '{path.dirname(path_data_local)}\\TMP'    """)
+            self.connection().commit()
+            self.connection().close()
+        except Exception as e:
+            print(e)
 
     def search_sales(self, serie, auto) -> int | bool:
         try:
@@ -42,6 +56,13 @@ class sqlQuerys:
             print(e)
             return False
 
+    async def get_serie_document_number(self, serie):
+        try:
+            no_factura = self.connection().execute(f"""SELECT NO_FACTURA FROM SSISTEMA WHERE DUMMYKEY = '{serie}' """).fetchone()[0]
+            return no_factura
+        except Exception as e:
+            print(e)    
+
     async def update_tablas_locales(self, auto_so, auto_sd):
         try:
             print(auto_so, auto_sd)
@@ -54,8 +75,24 @@ class sqlQuerys:
             self.connection().commit()
             
             self.connection().close()
+            return True
         except Exception as e:    
-            print(e)
+            return e
+    async def clear_tablas_locales(self):
+        try:
+            self.connection().execute("""EMPTY TABLE SOPERACIONINV """)
+            self.connection().execute("""EMPTY TABLE SDETALLEVENTA """)
+            return True
+        except Exception as e:
+            return False  
+        
+    async def get_data_local(self):
+        try:
+            rows = self.connection().execute("""SELECT FTI_DOCUMENTO FROM SOPERACIONINV""").rowcount
+            return rows
+        except Exception as e:
+            return e        
+
 
     async def max_Auto(self) -> tuple | Exception:
         try:
@@ -66,6 +103,14 @@ class sqlQuerys:
         except Exception as e:
             return e
         
+    async def insert_into_data_server(self):
+        try:
+            self.connection().execute("INSERT INTO SOPERACIONINV SELECT * FROM zip_backup\\SOPERACIONINV")
+            self.connection().execute("INSERT INTO SDETALLEVENTA SELECT * FROM zip_backup\\SDETALLEVENTA")
+            self.connection().commit()
+            self.connection().close()
+        except Exception as e:
+            print(e)
 
     def filter_client(self, id:str):
         clients = self.connection().execute(f"SELECT FC_CODIGO FROM SCLIENTES WHERE FC_CODIGO = '{id}'").fetchall()
