@@ -1,12 +1,13 @@
 import socketio
 import asyncio
 import pathlib
+import socketio.exceptions
 import uvicorn.server
 import uvicorn.config
 import os, sys
 import base64
 from datetime import datetime
-from functions import getKeys, getServerConfig
+from functions import getKeys, getServerConfig, saveServerLastUpdate
 from querys import sqlQuerys
 
 from functions import search_database_files, decompress_file
@@ -26,6 +27,7 @@ class NamespaceServer(socketio.AsyncNamespace):
         if config[3] != str(datetime.date(datetime.now())):#Validando ultima fecha de compactacion de datos si no es igual a la actual
           asyncio.create_task(search_database_files(catalogname=config[2]))
           asyncio.create_task(self.start_task())
+          saveServerLastUpdate(str(datetime.date(datetime.now())))
 
 
     async def on_recv_data_tables_client(self, sid, data:dict):
@@ -40,10 +42,17 @@ class NamespaceServer(socketio.AsyncNamespace):
                if os.path.isfile('zip\\data_partes_ventas_{sid}.zip'.format(sid=sid)):
                     await decompress_file('zip\\data_partes_ventas_{sid}.zip'.format(sid=sid), path_decompress='zip_backup\\')
                await sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).insert_into_data_server()     
-               await server_sio.emit('clear_data_local', to=sid, namespace='/default')     
+               await server_sio.emit('clear_data_local', to=sid, namespace='/default')
+               
           lists_file_clients.clear()
 
-
+    async def on_update_ssistema_serie(self, sid, data):
+         """Funcion que actualiza el numero de correlativo de facturacion en la tabla Ssistema, y luego emite un evento de actualizacion
+          en las cajas para actualizar de forma local el correlativo de cada serie de facturación """
+         sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).update_ssistema_document_number(data=data)
+         
+         
+   
     async def start_task(self):
         max_size_file = 1024*1024
         iter = 0 
@@ -92,17 +101,9 @@ class NamespaceServer(socketio.AsyncNamespace):
                 print(a)
            tasks.clear()     
 
-
-    #async def on_disconnect_user(self, sid):
-     #    await server_sio.disconnect(sid=sid)
-     #    for i in connected_clients:
-     #         if sid in i.keys():
-     #           connected_clients.remove(i)
-     #    print(connected_clients)        
-     #    print(f'user {sid} desconectado')  
-
     async def on_connect(self, sid, environ):
-        self.headers_client_serie = environ['asgi.scope']['headers'][1][1].decode('utf-8')
+        self.headers_client_serie = environ['HTTP_SERIE']
+        print(self.headers_client_serie)
         if len(connected_clients) > 0 :
              for clients in connected_clients:
                   if self.headers_client_serie in clients.values():
@@ -112,13 +113,16 @@ class NamespaceServer(socketio.AsyncNamespace):
         #gt =await server_sio.handle_request()     
         #print(gt)
         connected_clients.append({sid: self.headers_client_serie})
-        print(connected_clients)
+        print(connected_clients, self.headers_client_serie)
         
     async def on_disconnect(self, sid):
-         for i in connected_clients:
-              if sid in i.keys():
-                connected_clients.remove(i)
-         print(connected_clients)       
+         try:
+               for i in connected_clients:
+                 if sid in i.keys():
+                    connected_clients.remove(i)
+               print(connected_clients)
+         except Exception as e: 
+              print(e)            
              
 server_sio.register_namespace(NamespaceServer('/default')) 
          
