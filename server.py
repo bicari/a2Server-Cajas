@@ -2,15 +2,12 @@ import socketio
 import asyncio
 import pathlib
 import socketio.exceptions
-import uvicorn.server
-import uvicorn.config
-import os, sys
+import os
 import base64
-from datetime import datetime
-from functions import getKeys, getServerConfig, saveServerLastUpdate
+#from datetime import datetime
+from functions import  getServerConfig
 from querys import sqlQuerys
-
-from functions import search_database_files, decompress_file
+from functions import decompress_file
 
 server_sio = socketio.AsyncServer(async_mode='asgi',  logger=True, always_connect=False, cors_allowed_origins = '*', Engineio_logger=True, ping_timeout=60, ping_interval=30)
 app = socketio.ASGIApp(server_sio)
@@ -19,17 +16,14 @@ lists_file_clients = []
 tasks = []
 part_file = []
 config = getServerConfig()
+ 
 
 class NamespaceServer(socketio.AsyncNamespace):
     def __init__(self, namespace):
         super().__init__(namespace)
         self.namespace = namespace #Espacio de nombre general
-        if config[3] != str(datetime.date(datetime.now())):#Validando ultima fecha de compactacion de datos si no es igual a la actual
-          asyncio.create_task(search_database_files(catalogname=config[2]))
-          asyncio.create_task(self.start_task())
-          saveServerLastUpdate(str(datetime.date(datetime.now())))
-
-
+        
+        
     async def on_recv_data_tables_client(self, sid, data:dict):
          lists_file_clients.append(base64.b64decode(data['file']))#Decodificando partes de archivo segun codificacion base64
 
@@ -49,34 +43,14 @@ class NamespaceServer(socketio.AsyncNamespace):
     async def on_update_ssistema_serie(self, sid, data):
          """Funcion que actualiza el numero de correlativo de facturacion en la tabla Ssistema, y luego emite un evento de actualizacion
           en las cajas para actualizar de forma local el correlativo de cada serie de facturación """
-         sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).update_ssistema_document_number(data=data)
-         
-         
+         sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).update_ssistema_document_number(data=data)   
    
-    async def start_task(self):
-        max_size_file = 1024*1024
-        iter = 0 
-        if os.path.isfile('data.zip') == True and datetime.fromtimestamp(os.path.getmtime('data.zip')).strftime("%Y-%m-%d") == str(datetime.date(datetime.now())):#Verificando que exista el archivo data.zip y su ultima fecha de modificacion sea hoy
-            #size_file = os.path.getsize('data.zip')
-            with open('data.zip', 'rb') as file:
-                while True:
-                    bytes_file = file.read(max_size_file)
-                    if not bytes_file:
-                         #await server_sio.emit('end_file', data={'iter': iter}, namespace=self.namespace)
-                         print('Archivo por partes en memoria', len(part_file))
-                         break
-                    encoded_bytes_file = base64.b64encode(bytes_file)
-                    part_file.append(encoded_bytes_file)
-                    #await asyncio.sleep(0.9)
-                    #await server_sio.emit('recv_tables', data={'file': encoded_bytes_file}, namespace=self.namespace)
-                    iter += 1
+    
+         
          
     async def send_data_file_client(self, sid):
-         iter = 0
-         for part in part_file:
-              await server_sio.emit('recv_tables',data={'file': part}, namespace=self.namespace, to=sid)
-              iter +=1 
-         await server_sio.emit('end_file', data={'iter':iter}, namespace=self.namespace, to=sid)
+          await server_sio.emit('recv_tables', namespace=self.namespace, to=sid)
+
           
     async def on_update_so_sd_local(self, sid):
          MAXAUTO = await sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).max_Auto()
@@ -123,8 +97,31 @@ class NamespaceServer(socketio.AsyncNamespace):
                print(connected_clients)
          except Exception as e: 
               print(e)            
-             
-server_sio.register_namespace(NamespaceServer('/default')) 
+
+async def correlativos():
+     data=sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).get_correlativos()
+     ini = True
+     while True:
+          if len(connected_clients):
+               data=sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).get_correlativos()
+          await asyncio.sleep(6)
+          if ini:
+               series = {}
+               for x in data:
+                    series[x[1]] = x[0]
+               ini = False
+          for x in data:
+               if x[0] > series[x[1]] :
+                    await server_sio.emit('update_correlativo', data={'Serie' :x[1],'Correlativo': x[0]}, namespace='/default')
+                    series[x[1]] = x[0]
+                    
+               
+          
+          
+
+server_sio.register_namespace(NamespaceServer('/default'))
+server_sio.start_background_task(correlativos)
+
          
          
 
@@ -141,5 +138,4 @@ if __name__ == '__main__':
     if not os.path.exists(f"{pathlib.Path().absolute()}\\zip_backup"):
             os.mkdir(f"{pathlib.Path().absolute()}\\zip_backup")                      
 
-    uvicorn.run(app, host='127.0.0.1', port=8000)
      
