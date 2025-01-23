@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 from os import path
 
+
 class sqlQuerys:
     def __init__(self, dsn= None):
         self.dsn = pyodbc.connect(dsn)
@@ -56,14 +57,44 @@ class sqlQuerys:
             print(e)
             return False
 
-    async def get_serie_document_number(self, serie):
+    def update_ssistema_document_number(self, data: dict):
         try:
-            no_factura = self.connection().execute(f"""SELECT NO_FACTURA FROM SSISTEMA WHERE DUMMYKEY = '{serie}' """).fetchone()[0]
+            self.connection().execute(f"""UPDATE SSISTEMA SET NO_FACTURA = {int(data['ultima_factura'])}  WHERE DUMMYKEY = '{data['serie']}' """ )
+            
+            self.connection().commit()
+            self.connection().close()
+            return True
+        except Exception as e:
+            return e
+
+
+    def get_serie_document_number(self, serie):
+        try:
+            no_factura = self.connection().execute(f"""SELECT NO_FACTURA FROM SSISTEMA WHERE DUMMYKEY = '{serie}'  """).fetchone()[0]
+            self.connection().close()
             return no_factura
         except Exception as e:
             print(e)    
 
-    async def update_tablas_locales(self, auto_so, auto_sd):
+    def get_correlativos(self):
+        try:
+            no_factura = self.connection().execute(f"""SELECT NO_FACTURA, DUMMYKEY FROM SSISTEMA  """).fetchall()
+            self.connection().close()
+            return no_factura
+        except Exception as e:
+            print(e)   
+
+    def update_correlativos(self, serie: str, correlativo: int):
+        try:
+            no_factura = self.connection().execute(f"""UPDATE SSISTEMA SET NO_FACTURA = {correlativo} WHERE DUMMYKEY = '{serie}'  """).rowcount
+            self.connection().commit()
+            self.connection().close()
+            return no_factura
+        except Exception as e:
+            print(e)          
+
+
+    def update_tablas_locales(self, auto_so, auto_sd):
         try:
             print(auto_so, auto_sd)
             self.connection().execute(f"""UPDATE SOPERACIONINV SET FTI_AUTOINCREMENT = FTI_AUTOINCREMENT + {auto_so}""")
@@ -78,7 +109,7 @@ class sqlQuerys:
             return True
         except Exception as e:    
             return e
-    async def clear_tablas_locales(self):
+    def clear_tablas_locales(self):
         try:
             self.connection().execute("""EMPTY TABLE SOPERACIONINV """)
             self.connection().execute("""EMPTY TABLE SDETALLEVENTA """)
@@ -86,23 +117,31 @@ class sqlQuerys:
         except Exception as e:
             return False  
         
-    async def get_data_local(self):
+    def get_data_local(self, serie):
         try:
-            rows = self.connection().execute("""SELECT FTI_DOCUMENTO FROM SOPERACIONINV""").rowcount
+            rows = self.connection().execute(f"""SELECT FTI_DOCUMENTO FROM SOPERACIONINV WHERE FTI_SERIE = '{serie}' """).rowcount
             return rows
         except Exception as e:
-            return e        
+            print(e)
+            return 0       
 
 
-    async def max_Auto(self) -> tuple | Exception:
+    async def max_Auto(self) -> tuple | str:
         try:
             max_auto = self.connection().execute("SELECT MAX(FTI_AUTOINCREMENT) FROM SOPERACIONINV").fetchone()[0]
             max_auto_detalle = self.connection().execute("SELECT MAX(FDI_AUTOINCREMENT) FROM SDETALLEVENTA").fetchone()[0]
             self.connection().close()
             return (max_auto , max_auto_detalle)
         except Exception as e:
-            return e
-        
+            return str(e)
+
+    def create_tables_locales(self, tables: tuple):
+        try:
+            for table in tables:
+                self.connection().execute(table)    
+        except Exception as e:
+            print(e)    
+
     async def insert_into_data_server(self):
         try:
             self.connection().execute("INSERT INTO SOPERACIONINV SELECT * FROM zip_backup\\SOPERACIONINV")
