@@ -35,7 +35,7 @@ class NamespaceServer(socketio.AsyncNamespace):
                     file_zip.write(file)#Escribiendo archivo comprimido
                if os.path.isfile('zip\\data_partes_ventas_{sid}.zip'.format(sid=sid)):
                     await decompress_file('zip\\data_partes_ventas_{sid}.zip'.format(sid=sid), path_decompress='zip_backup\\')
-               await sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).insert_into_data_server()     
+               await sqlQuerys('DSN=a2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).insert_into_data_server()     
                await server_sio.emit('clear_data_local', to=sid, namespace='/default')
                
           lists_file_clients.clear()
@@ -43,7 +43,7 @@ class NamespaceServer(socketio.AsyncNamespace):
     async def on_update_ssistema_serie(self, sid, data):
          """Funcion que actualiza el numero de correlativo de facturacion en la tabla Ssistema, y luego emite un evento de actualizacion
           en las cajas para actualizar de forma local el correlativo de cada serie de facturación """
-         sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).update_ssistema_document_number(data=data)   
+         sqlQuerys('DSN=a2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).update_ssistema_document_number(data=data)   
    
     
          
@@ -53,8 +53,8 @@ class NamespaceServer(socketio.AsyncNamespace):
 
           
     async def on_update_so_sd_local(self, sid):
-         MAXAUTO = await sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).max_Auto()
-         if type(MAXAUTO) == Exception:
+         MAXAUTO = await sqlQuerys('DSN=a2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).max_Auto()
+         if type(MAXAUTO) == str:
                await server_sio.emit('update_so_sd', data={'soperacion_auto': 'error', 'sdetalle_auto': 'error'}, to=sid, namespace='/default')
          else:
                await server_sio.emit('update_so_sd', data={'soperacion_auto': MAXAUTO[0], 'sdetalle_auto': MAXAUTO[1]}, to=sid, namespace='/default')    
@@ -99,25 +99,20 @@ class NamespaceServer(socketio.AsyncNamespace):
               print(e)            
 
 async def correlativos():
-     data=sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).get_correlativos()
-     ini = True
+     data=sqlQuerys('DSN=a2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).get_correlativos()
+     series = {x[1]: x[0] for x in data}
      while True:
-          if len(connected_clients):
-               data=sqlQuerys('DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).get_correlativos()
+          if len(connected_clients)> 0:
+               new_data=sqlQuerys('DSN=a2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).get_correlativos()
+               for x in new_data:
+                    if x[0] > series.get(x[1], 0):
+                         await server_sio.emit('update_correlativo', data={'Serie' :x[1],'Correlativo': x[0]}, namespace='/default')
+                         series[x[1]] = x[0]
           await asyncio.sleep(6)
-          if ini:
-               series = {}
-               for x in data:
-                    series[x[1]] = x[0]
-               ini = False
-          for x in data:
-               if x[0] > series[x[1]] :
-                    await server_sio.emit('update_correlativo', data={'Serie' :x[1],'Correlativo': x[0]}, namespace='/default')
-                    series[x[1]] = x[0]
+          
                     
-               
-          
-          
+                    
+                         
 
 server_sio.register_namespace(NamespaceServer('/default'))
 server_sio.start_background_task(correlativos)
