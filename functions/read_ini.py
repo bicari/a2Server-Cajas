@@ -1,5 +1,5 @@
 import configparser
-import asyncio
+
 #import os
 
 async def lastAuto():
@@ -7,6 +7,13 @@ async def lastAuto():
     global_var.read('server.ini')
     auto =  global_var.items('LASTAUTO')
     return auto
+
+def saveServerLastUpdate(date: str):
+    server = configparser.ConfigParser()
+    server.read('server.ini')
+    server['CONFIG']['LAST_COMPACT']= date
+    with open('server.ini', 'w') as file:
+        server.write(file)
 
 def getKeys():
     get_keys = configparser.ConfigParser()
@@ -31,8 +38,12 @@ def getServerConfig():
     ip = server.get('CONFIG', 'IP')
     port = server.get('CONFIG', 'PORT')
     path_data = server.get('CONFIG', 'PATH_DATA')
+    last_compact_date = server.get('CONFIG', 'LAST_COMPACT')
+    ip_server_files = server.get('CONFIG', 'SERVER_FILES')
+    port_server_files = server.get('CONFIG', 'PORT_SERVER_FILES')
+    path_server_files = server.get('CONFIG', 'PATH_SERVER_FILES')
 
-    return ip, port, path_data
+    return ip, port, path_data, last_compact_date, ip_server_files, port_server_files, path_server_files
 
 def getConfigClient():
     client = configparser.ConfigParser()
@@ -45,9 +56,11 @@ def getConfigClient():
     a2data = client.get('CONFIG', 'RUTA_A2')
     ruta_a2_cash= client.get('CONFIG', 'RUTA_A2_CASH')
     sync = client.get('CONFIG', 'SYNC')
-    return ip, port, rutalocal, serie.upper(), series.upper().split(','),  a2data, ruta_a2_cash, sync
+    ip_server_files = client.get('CONFIG', 'SERVERFILES')
+    port_server_files = client.get('CONFIG', 'PORTFILES')
+    return ip, port, rutalocal, serie.upper(), series.upper().split(','),  a2data, ruta_a2_cash, sync, ip_server_files, port_server_files
 
-def saveInitConfig(server_ip, port, serie, ruta_local, ruta_a2, ruta_a2_cash):
+def saveInitConfig(server_ip, port, serie, ruta_local, ruta_a2, ruta_a2_cash, portfiles, ipfiles):
     try:
         file = configparser.ConfigParser(strict=True)
         file.read('client.ini')
@@ -57,6 +70,8 @@ def saveInitConfig(server_ip, port, serie, ruta_local, ruta_a2, ruta_a2_cash):
         file['CONFIG']['RUTALOCAL'] = ruta_local
         file['CONFIG']['RUTA_A2'] = ruta_a2
         file['CONFIG']['RUTA_A2_CASH'] = ruta_a2_cash
+        file['CONFIG']['PORTFILES']= portfiles
+        file['CONFIG']['SERVERFILES']= ipfiles
         with open('client.ini', 'w') as file_ini:
             file.write(file_ini)
         return True    
