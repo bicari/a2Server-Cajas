@@ -1,5 +1,5 @@
 import flet as ft
-from socketio import AsyncClient
+from socketio import Client
 import asyncio
 import datetime
 from querys import sqlQuerys
@@ -11,7 +11,7 @@ RemotePing=False;RemotePingInterval=60;RemoteEncryption=False;RemoteEncryptionPa
 LockRetryCount=15;LockWaitTime=100;ForceBufferFlush=False;
 StrictChangeDetection=False;PrivateDirectory={catalogname}""".format(catalogname=config[2], path=r'C:\Program Files (x86)\DBISAM 4 ODBC-CS\libs\dbodbc\read-write\win64\dbodbc.dll')
 class SyncPage(ft.Container):
-    def __init__(self, page: ft.Page, client_socket: AsyncClient, list_view_send_data: ft.ListView, progress_ring: ft.ProgressRing):
+    def __init__(self, page: ft.Page, client_socket: Client, list_view_send_data: ft.ListView, progress_ring: ft.ProgressRing):
         super().__init__()
         self.page = page
         self.list_view_data = list_view_send_data
@@ -32,7 +32,7 @@ class SyncPage(ft.Container):
                                                                                                                                                                     ), ft.OutlinedButton('No', on_click=self.modal_no_click)],
                                                                                                                                                                     actions_alignment=ft.MainAxisAlignment.END)
         self.column_progress_ring = ft.Column(controls=[self.progress_ring],alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.END, expand=True, width=650)
-    async def emit_send_data(self):#Funcion asincrona(Corrutina) que emite el evento de envio de datos al server
+    def emit_send_data(self):#Funcion asincrona(Corrutina) que emite el evento de envio de datos al server
         try:
             self.container_list_view.visible = True
             self.list_view_data.controls.append(ft.Text('{hora} Ejecutando solicitud, esperando respuesta del servidor'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
@@ -40,8 +40,8 @@ class SyncPage(ft.Container):
             #self.page.overlay.append(self.column_progress_ring)
             self.page.update()
             time.sleep(5)
-            if await sqlQuerys(PATH_DSN_ODBC).get_data_local() > 0:
-                await self.async_client.emit('update_so_sd_local', namespace='/default')
+            if sqlQuerys(PATH_DSN_ODBC).get_data_local(config[3]) > 0:
+                self.async_client.emit('update_so_sd_local', namespace='/default')
             else:
                 self.list_view_data.controls.append(ft.Text('{hora} Tablas locales sin datos para enviar'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")), color= ft.colors.RED_400))   
                 self.progress_ring.visible = False
@@ -56,8 +56,7 @@ class SyncPage(ft.Container):
     def entry_emit_send_data(self, e):#Entrada a la funcion asincrona
         self.modal_dialog.open = False
         self.page.update()
-        print(len(self.page.overlay), self.page.overlay)
-        asyncio.run(self.emit_send_data())    
+        self.emit_send_data()
     
     def modal_no_click(self, e):
         self.modal_dialog.open = False
