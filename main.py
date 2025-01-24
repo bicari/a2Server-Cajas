@@ -9,7 +9,7 @@ import asyncio
 import socketio.exceptions
 from controls import GrupoContenedores
 import pathlib
-from functions import getConfigClient, search_local_tables, decompress_file_sinc, show_modal_window, show_message_powershell, saveSyncData
+from functions import getConfigClient, search_local_tables, decompress_file_sinc, show_message_powershell, saveSyncData
 import base64
 import sys
 from querys.update_tablas import sqlQuerys
@@ -245,7 +245,6 @@ def window_event(e):
     if e.data == 'close':
         confirm_close_dialog.open = True
         p.open(confirm_close_dialog)
-        print('eee')
         p.update()
     
             
