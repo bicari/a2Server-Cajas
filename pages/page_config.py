@@ -2,6 +2,7 @@ import flet as ft
 import re
 import os
 from functions import saveInitConfig
+from querys.update_tablas import sqlQuerys
 class ConfigPage(ft.ListView):
     def __init__(self, page: ft.Page, config, btn_save_data: ft.FloatingActionButton):
         super().__init__()
@@ -18,22 +19,77 @@ class ConfigPage(ft.ListView):
         self.dropdown_series = ft.Dropdown(config[3].upper(), options=[
             ft.dropdown.Option(x) for x in config[4]
         ], border_radius=12)
+        self.desconnection_mode = ft.Switch(label="Desconexión automatica", value=[10])
         self.btn_save_data = ft.IconButton(ft.icons.SAVE_ROUNDED, icon_color=ft.colors.BLUE_400, icon_size=50, tooltip='Guardar Cambios', on_click=self.click_save_data)
-        #self.page.floating_action_button = ft.ElevatedButton("Guardar", icon=ft.icons.SAVE, visible=False, on_click=self.click_save_data)
-        
+        self.desconection_button = ft.IconButton(ft.icons.ERROR_OUTLINE, icon_color=ft.colors.RED_400, icon_size=50,tooltip='Activar contingencia', on_click=self.activar_contingencia)
+        self.btn_restaurar_sempresas = ft.IconButton(ft.icons.SYNC_LOCK, icon_color=ft.colors.GREEN_400,icon_size=50, tooltip="Desactivar Contingencia",on_click=self.desactivar_contingencia, disabled=True)
         self.column =  ft.Column([self.text_field_ruta_local, self.text_field_ruta_a2data, self.text_field_ruta_a2_cash, self.text_field_IP, self.text_field_PORT, self.text_field_IP_Server_files, self.text_field_PORT_file, 
                                   self.container_serie,self.dropdown_series, 
-                                  self.btn_save_data], expand=True)
+                                  self.desconnection_mode,
+                                  ft.Row([self.btn_save_data, self.desconection_button,self.btn_restaurar_sempresas ]) ], expand=True)
+        self.modal_desconexion = ft.AlertDialog(modal=True, title=ft.Text("Por favor confirme"), content=ft.Text('Desea activar contingencia?'), actions=[ft.ElevatedButton('Sí', on_click=self.modal_yes_click
+                                                                                                                                                                    ), ft.OutlinedButton('No', on_click=self.modal_no_click)],
+                                                                                                                                                                    actions_alignment=ft.MainAxisAlignment.END)
+        self.message_snack_bar = ft.SnackBar(content=ft.Text(), bgcolor=ft.colors.GREEN_300, duration=4000)
         self.visible = True
         self.controls = [ft.Container(content=self.column, bgcolor="#474b4e", expand= True, border_radius=12)]
         self.expand = True
 
-    
+    def desactivar_contingencia(self, e):
+        self.modal_desconexion.open = True
+        self.modal_desconexion.content = ft.Text("¿Desea desactivar el modo contingencia?")
+        self.modal_desconexion.actions = [ft.ElevatedButton('Sí', on_click=self.modal_yes_click, data=0), ft.OutlinedButton('No', on_click=self.modal_no_click)]
+        self.page.open(self.modal_desconexion)
+        self.page.update()
+        
+
+    def modal_yes_click(self, e):
+        if e.control.data == 0:
+            result = sqlQuerys('DSN=A2GKC; CatalogName={catalogname}'.format(catalogname=self.init_config[6])).update_sempresas_a2cash(path_data_local=self.init_config[5], path_local_formatos_config= os.path.dirname(self.init_config[5]))
+            if result:
+                self.message_snack_bar.content = ft.Text("Tablas locales actualizadas, contingencia desactivada")
+                self.message_snack_bar.open = True
+                self.page.overlay.append(self.message_snack_bar)
+                self.modal_desconexion.open = False
+                self.desconection_button.disabled = False
+                self.page.update()
+            else:
+                self.message_snack_bar.content = ft.Text(result)
+                self.message_snack_bar.open = True
+                self.page.overlay.append(self.message_snack_bar)
+                self.page.update()
+        if e.control.data ==  1:
+            result = sqlQuerys('DSN=A2GKC; CatalogName={catalogname}'.format(catalogname=self.init_config[6])).update_sempresas_a2cash(path_data_local=self.init_config[2], path_local_formatos_config= os.path.dirname(self.init_config[2]))
+            if result:
+                self.message_snack_bar.content = ft.Text("Tablas locales actualizadas, contingencia activada")
+                self.message_snack_bar.open = True
+                self.page.overlay.append(self.message_snack_bar)
+                self.modal_desconexion.open = False
+                self.desconection_button.disabled = True
+                self.desconection_button.icon_color = ft.colors.GREY_100
+                self.btn_restaurar_sempresas.disabled = False
+                self.page.update()
+
+    def modal_no_click(self, e):
+        self.modal_desconexion.open = False
+        self.page.update()
+        
+
+    def activar_contingencia(self, e: ft.ControlEvent):
+        self.modal_desconexion.open = True
+        self.modal_desconexion.content = ft.Text("¿Esta seguro de activar el modo fuera de linea?")
+        self.modal_desconexion.actions = [ft.ElevatedButton('Sí', on_click=self.modal_yes_click, data=1), ft.OutlinedButton('No', on_click=self.modal_no_click)]
+        self.page.open(self.modal_desconexion)
+        self.page.update()
+
+        
+
     
     def result_data_save(self):
         result_change = saveInitConfig(server_ip=self.text_field_IP.value, port=self.text_field_PORT.value, 
                                        serie=self.dropdown_series.value, ruta_local=self.text_field_ruta_local.value, ruta_a2=self.text_field_ruta_a2data.value, 
-                                       ruta_a2_cash=self.text_field_ruta_a2_cash.value, portfiles=self.text_field_PORT_file.value, ipfiles=self.text_field_IP_Server_files.value)
+                                       ruta_a2_cash=self.text_field_ruta_a2_cash.value, portfiles=self.text_field_PORT_file.value, ipfiles=self.text_field_IP_Server_files.value,
+                                       connection_mode=str(int(self.desconnection_mode.value)))
         
         if result_change == True:
             return True
@@ -97,6 +153,7 @@ class ConfigPage(ft.ListView):
             if result == True:
                 self.message_save_data = ft.SnackBar(ft.Text('Cambios guardados con éxito!') ,action='Alright!', visible=True, duration=4000, bgcolor=ft.colors.GREEN_300)
             else:
+                print(result)
                 self.message_save_data = ft.SnackBar(ft.Text('Error al intentar guardar los cambios, verifique que el archivo .ini exista'), visible=True, duration=5000, bgcolor=ft.colors.RED_300)    
             self.message_save_data.open = True
             self.page.overlay.append(self.message_save_data)
