@@ -58,9 +58,10 @@ def getConfigClient():
     sync = client.get('CONFIG', 'SYNC')
     ip_server_files = client.get('CONFIG', 'SERVERFILES')
     port_server_files = client.get('CONFIG', 'PORTFILES')
-    return ip, port, rutalocal, serie.upper(), series.upper().split(','),  a2data, ruta_a2_cash, sync, ip_server_files, port_server_files
+    connection_mode = client.get('CONFIG', 'CONNECTION_MODE')
+    return ip, port, rutalocal, serie.upper(), series.upper().split(','),  a2data, ruta_a2_cash, sync, ip_server_files, port_server_files, connection_mode
 
-def saveInitConfig(server_ip, port, serie, ruta_local, ruta_a2, ruta_a2_cash, portfiles, ipfiles):
+def saveInitConfig(server_ip, port, serie, ruta_local, ruta_a2, ruta_a2_cash, portfiles, ipfiles, connection_mode):
     try:
         file = configparser.ConfigParser(strict=True)
         file.read('client.ini')
@@ -72,6 +73,7 @@ def saveInitConfig(server_ip, port, serie, ruta_local, ruta_a2, ruta_a2_cash, po
         file['CONFIG']['RUTA_A2_CASH'] = ruta_a2_cash
         file['CONFIG']['PORTFILES']= portfiles
         file['CONFIG']['SERVERFILES']= ipfiles
+        file['CONFIG']['CONNECTION_MODE'] = connection_mode
         with open('client.ini', 'w') as file_ini:
             file.write(file_ini)
         return True    
