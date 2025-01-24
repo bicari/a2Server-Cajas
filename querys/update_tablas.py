@@ -18,9 +18,9 @@ class sqlQuerys:
                                       FE_TIPOCONEXION = 0""")
             self.connection().commit()
             self.connection().close()
-            print('Cerrando')
+            return True
         except Exception as e:
-            print(e)    
+            return str(e)
 
     def update_susuarios(self, path_data_local):
         try:
