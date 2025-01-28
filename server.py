@@ -35,8 +35,13 @@ class NamespaceServer(socketio.AsyncNamespace):
                     file_zip.write(file)#Escribiendo archivo comprimido
                if os.path.isfile('zip\\data_partes_ventas_{sid}.zip'.format(sid=sid)):
                     await decompress_file('zip\\data_partes_ventas_{sid}.zip'.format(sid=sid), path_decompress='zip_backup\\')
-               await sqlQuerys('DSN=a2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).insert_into_data_server()     
-               await server_sio.emit('clear_data_local', to=sid, namespace='/default')
+               result = await sqlQuerys('DSN=a2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).insert_into_data_server()
+               print(result, 'Resultado', type(result))     
+               if type(result) == str:
+                    await server_sio.emit('error_insert', to=sid, namespace='/default', data={'error': result})     
+                    
+               else:
+                    await server_sio.emit('clear_data_local', to=sid, namespace='/default')
                
           lists_file_clients.clear()
 
