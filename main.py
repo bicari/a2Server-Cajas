@@ -155,7 +155,7 @@ def send_files_sales(data: dict):
 def connect():
     global reconnection
     config =  getConfigClient()
-    if reconnection:
+    if reconnection and int (config[10]) == 1:
         if sqlQuerys(PATH_DSN_ODBC).get_data_local(config[3]) > 0:
             no_factura = sqlQuerys(PATH_DSN_ODBC).get_serie_document_number(config[3])
             no_factura_server = sqlQuerys(dsn='DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[5])).get_serie_document_number(config[3])
@@ -181,38 +181,23 @@ def connect():
 
 @caja.on('disconnect', namespace='/default')
 def disconnect():
-    if click_disconnect == False:
+    if click_disconnect == False and int(config[10]) == 1:
         global reconnection
         badge_connection.bgcolor = 'red'
         snack_bar_msg_connection.content = ft.Text('Desconectado del servidor')
         snack_bar_msg_connection.open = True
+        p.window.center()
         p.update()
         tray_icon_minimize.icon = Image.open("assets\\Desconectado.png")
-        if not p.window.maximized:
-            p.window.maximized = True
-            # p.window.minimizable = False
-            #p.bgcolor = ft.colors.TRANSPARENT
-            #p.window_bgcolor = ft.colors.WHITE
-            p.window_frameless = True
-            p.window.max_height = 200
-            p.window.max_width = 200
-            p.window.width = 400
-            
-            #p.window.height = 200
-            #p.window.width = 200
-            disconnect_modal.content = ft.Container(content=ft.Column([ft.Text('TEXTO')]), width=800, height=400)
-            disconnect_modal.open = True
-            p.open(disconnect_modal)
-            p.window.center()
-            p.update()
+        
             
             
-            
-        #show_message_powershell(r'scripts\modal_Test.ps1')  
+        show_message_powershell(r'scripts\modal_Test.ps1')  
         sqlQuerys('DSN=A2GKC; CatalogName={catalogname}'.format(catalogname=config[6])).update_sempresas_a2cash(path_data_local=config[2], path_local_formatos_config= os.path.dirname(config[2]))
-        #show_message_powershell(r'scripts\show_message_contingencia.ps1')
+        show_message_powershell(r'scripts\show_message_contingencia.ps1')
         reconnection = True
-    
+    else:
+        pass
     # while not caja.connected:
     #     print('test')
     #     try:
@@ -243,9 +228,10 @@ def window_event(e):
         tray_icon_minimize.visible = True
         p.update() 
     if e.data == 'close':
-        confirm_close_dialog.open = True
         p.open(confirm_close_dialog)
         p.update()
+       
+    
     
             
     
@@ -283,8 +269,9 @@ def modal_yes_click(e):
     
 
 def modal_no_click(e):
-    confirm_close_dialog.open = False
-    p.update()
+    # confirm_close_dialog.open = False
+    # p.update()
+    p.close(confirm_close_dialog)
 
 def main(page):
 
@@ -296,8 +283,8 @@ def main(page):
     global tray_icon_minimize, confirm_close_dialog, disconnect_modal
     disconnect_modal = ft.AlertDialog(modal=True, title=ft.Text('Desconexión detectada'),  actions=[])
     confirm_close_dialog = ft.AlertDialog(modal=True, title=ft.Text('Por favor confirme'), content=ft.Text('Desea cerrar la app?'), actions=[ft.ElevatedButton('Sí', on_click=modal_yes_click
-                                                                                                                                                                    ), ft.OutlinedButton('No', on_click=modal_no_click)],
-                                                                                                                                                                    actions_alignment=ft.MainAxisAlignment.END)
+                                                                                                                                                                    ), ft.OutlinedButton('No', on_click=modal_no_click)]
+                                                                                                                                                                    )
     tray_icon_minimize = Icon( title='App de sincronizacion', icon=Image.open("assets\\Desconectado.png"), page=p)
     #p.window.max_height = 400
     #p.window.min_height= 400
@@ -320,7 +307,7 @@ def main(page):
     p.overlay.append(snack_bar_msg_connection)
     badge_connection = ft.Badge(content=ft.Icon(ft.icons.ONLINE_PREDICTION), bgcolor=ft.colors.RED, alignment=ft.alignment.center,small_size=10)
     btn_save_data = ft.FloatingActionButton("Guardar", icon=ft.icons.SAVE, visible=False)  
-    page_config = ConfigPage(page=p, config=config, btn_save_data=btn_save_data)
+    page_config = ConfigPage(page=p, config=config, btn_save_data=btn_save_data, message_bar=snack_bar_msg_connection)
     sync_page = SyncPage(page=p, client_socket=caja, list_view_send_data=list_view_data_client, progress_ring=progress_ring)
     buttons_sidebar= GrupoContenedores(page=p, badge=badge_connection, page_container_to_show_settings=page_config, page_container_to_show_sync=sync_page).control_group
     
