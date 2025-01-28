@@ -148,8 +148,11 @@ class sqlQuerys:
             self.connection().execute("INSERT INTO SDETALLEVENTA SELECT * FROM zip_backup\\SDETALLEVENTA")
             self.connection().commit()
             self.connection().close()
+            return True
         except Exception as e:
             print(e)
+            return str(e)
+            
 
     def filter_client(self, id:str):
         clients = self.connection().execute(f"SELECT FC_CODIGO FROM SCLIENTES WHERE FC_CODIGO = '{id}'").fetchall()
