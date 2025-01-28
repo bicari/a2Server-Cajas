@@ -1,14 +1,16 @@
 import flet as ft
 import re
 import os
-from functions import saveInitConfig
+from functions import saveInitConfig, reconnection_server
 from querys.update_tablas import sqlQuerys
+from socketio import Client
 
 class ConfigPage(ft.ListView):
-    def __init__(self, page: ft.Page, config, btn_save_data: ft.FloatingActionButton, message_bar: ft.SnackBar):
+    def __init__(self, page: ft.Page, config, btn_save_data: ft.FloatingActionButton, message_bar: ft.SnackBar, client:Client):
         super().__init__()
         self.init_config = config # [0]IP [1]PORT [2]rutalocal [3]SERIEACTUAL [4]SERIES [5]ruta a2
         self.page = page
+        self.client = client
         self.text_field_ruta_local = ft.TextField(config[2], label='Ruta a2Cash Local', max_length=100, offset=ft.Offset(0,0.2), border_radius=12,  autofocus=True)
         self.text_field_ruta_a2data = ft.TextField(config[5], label='Ruta a2Data', max_length=100, offset=ft.Offset(0,0.2), border_radius=12,  autofocus=True)
         self.text_field_ruta_a2_cash = ft.TextField(config[6], label='Ruta a2Cash', max_length=100, offset=ft.Offset(0,0.2), border_radius=12,  autofocus=True)
@@ -23,12 +25,12 @@ class ConfigPage(ft.ListView):
         self.desconnection_mode = ft.Switch(label="Desconexión automatica", value=bool(int(self.init_config[10])))
         self.btn_save_data = ft.IconButton(ft.icons.SAVE_ROUNDED, icon_color=ft.colors.BLUE_400, icon_size=50, tooltip='Guardar Cambios', on_click=self.click_save_data)
         self.desconection_button = ft.IconButton(ft.icons.ERROR_OUTLINE, icon_color=ft.colors.RED_400, icon_size=50,tooltip='Activar contingencia', on_click=self.activar_contingencia, disabled= True if int(self.init_config[10])== 1 else False)
-        self.btn_restaurar_sempresas = ft.IconButton(ft.icons.SYNC_LOCK, icon_color=ft.colors.GREEN_400,icon_size=50, tooltip="Desactivar Contingencia",on_click=self.desactivar_contingencia, disabled=True)
+        self.btn_restaurar_sempresas = ft.IconButton(ft.icons.SYNC_LOCK, icon_color=ft.colors.GREY_100,icon_size=50, tooltip="Desactivar Contingencia",on_click=self.desactivar_contingencia, disabled=True)
         self.column =  ft.Column([self.text_field_ruta_local, self.text_field_ruta_a2data, self.text_field_ruta_a2_cash, self.text_field_IP, self.text_field_PORT, self.text_field_IP_Server_files, self.text_field_PORT_file, 
                                   self.container_serie,self.dropdown_series, 
                                   self.desconnection_mode,
                                   ft.Row([self.btn_save_data, self.desconection_button,self.btn_restaurar_sempresas ]) ], expand=True)
-        self.modal_activar = ft.AlertDialog(modal=True, title=ft.Text("Por favor confirme"), content=ft.Text('Desea activar contingencia?'), actions=[])
+        self.modal_activar = ft.AlertDialog(modal=True, title=ft.Text("¡Por favor confirme!"), content=ft.Text('¿Desea activar contingencia?'), actions=[], actions_alignment=ft.MainAxisAlignment.CENTER)
         #self.modal_desactivar = ft.AlertDialog(modal=True, title=ft.Text("Por favor confirme"), content=ft.Text('Desea desactivar contingencia?'))
         self.message_snack_bar = message_bar #ft.SnackBar(content=ft.Text(), bgcolor=ft.colors.GREEN_300, duration=4000)
         
@@ -41,8 +43,8 @@ class ConfigPage(ft.ListView):
         print('Desactivando')
         #self.modal_desactivar.content = ft.Text("Deseactivar contingencia") 
         
-            
-        self.modal_activar.actions = [ft.ElevatedButton('De acuerdo', on_click=self.modal_yes_click, data=0), ft.OutlinedButton('No', on_click=self.modal_no_click) ]
+        self.modal_activar.content = ft.Text('¿Desea pasar a modo "En linea"? ')    
+        self.modal_activar.actions = [ft.ElevatedButton('Aceptar', on_click=self.modal_yes_click, data=0), ft.OutlinedButton('No', on_click=self.modal_no_click) ]
         self.modal_activar.open = True
         self.page.add(self.modal_activar) 
         self.page.update()
@@ -51,7 +53,9 @@ class ConfigPage(ft.ListView):
 
     def modal_yes_click(self, e):
         
-        if e.control.data == 0:
+        if e.control.data == 0:#Validacion para desactivar la contingencia
+            #Actualizando tablas locales
+            reconnection_server(config=self.init_config, caja=self.client, path_dsn_odbc='DSN=A2GKC; CatalogName={catalogname}'.format(catalogname=self.init_config[2]))
             result = sqlQuerys('DSN=A2GKC; CatalogName={catalogname}'.format(catalogname=self.init_config[6])).update_sempresas_a2cash(path_data_local=self.init_config[5], path_local_formatos_config= os.path.dirname(self.init_config[5]))
             if result:
                 self.message_snack_bar.content = ft.Text("Tablas locales actualizadas, contingencia desactivada")
@@ -59,11 +63,13 @@ class ConfigPage(ft.ListView):
                 # #self.page.overlay.append(self.message_snack_bar)
                 # self.modal_desactivar.open = False
                 self.desconection_button.disabled = False
+                self.btn_restaurar_sempresas.icon_color= ft.colors.GREY_100
                 self.btn_restaurar_sempresas.disabled = True
+                self.desconection_button.icon_color = ft.colors.RED_400
                 self.page.close(self.modal_activar)
                 self.page.update()
                 self.page.controls.pop()
-                print(len(self.page.overlay))
+                #print(len(self.page.overlay))
                 
                 
                 
@@ -72,24 +78,23 @@ class ConfigPage(ft.ListView):
                 self.message_snack_bar.open = True
                 #self.page.overlay.append(self.message_snack_bar)
                 self.page.update()
-        if e.control.data ==  1:
-            print('Activando contingencia')
+        if e.control.data ==  1: #Validacion para activar la contingencia
             result = sqlQuerys('DSN=A2GKC; CatalogName={catalogname}'.format(catalogname=self.init_config[6])).update_sempresas_a2cash(path_data_local=self.init_config[2], path_local_formatos_config= os.path.dirname(self.init_config[2]))
             if result:
-                # self.message_snack_bar.content = ft.Text("Tablas locales actualizadas, contingencia activada")
+                self.message_snack_bar.content = ft.Text("Tablas locales actualizadas, contingencia activada")
                 # self.page.snack_bar = self.message_snack_bar
-                # self.page.snack_bar.open = True
+                self.message_snack_bar.open = True
                 # self.page.overlay.append(self.message_snack_bar)
                 # self.page.update()
                 #self.modal_desconexion.open = False
-                
+                self.btn_restaurar_sempresas.icon_color= ft.colors.GREEN_400
                 self.desconection_button.disabled = True
                 self.desconection_button.icon_color = ft.colors.GREY_100
                 self.btn_restaurar_sempresas.disabled = False
                 self.page.close(self.modal_activar)
                 self.page.update()
                 self.page.controls.pop()
-                print(len(self.page.overlay), self.modal_activar.actions)
+                #print(len(self.page.overlay), self.modal_activar.actions)
                 
                
             
