@@ -5,11 +5,11 @@ import datetime
 import socketio
 import os, sys
 import time
-import asyncio
+#import asyncio
 import socketio.exceptions
 from controls import GrupoContenedores
 import pathlib
-from functions import getConfigClient, search_local_tables, decompress_file_sinc, show_message_powershell, saveSyncData
+from functions import getConfigClient, search_local_tables, decompress_file_sinc, show_message_powershell, saveSyncData, reconnection_server
 import base64
 import sys
 from querys.update_tablas import sqlQuerys
@@ -19,6 +19,7 @@ from querys import sqlQuerys
 from querys.create_tablas import SOPERACIONINV, SDETALLEVENTA, SDETALLEINV, STRANSBANCO,SCUENTASXCOBRAR,SDETALLECOMPRA,SDETALLEPARTES,STRANSCUENTA 
 import requests
 import json 
+
 p : ft.Page
 caja = socketio.Client(reconnection=True, logger=True)
 list_file = [] 
@@ -128,6 +129,12 @@ def update_soperacion_sdetalle_local(data:dict):
         snack_bar_msg_connection.bgcolor = ft.colors.RED_300
         p.update()    
    
+#Evento recibe errores de las operaciones en base de datos del server
+@caja.on('error_insert', namespace='/default')
+def recv_error(data: dict):
+    list_view_data_client.controls.append(ft.Text('{hora} Error al insertar en BBDD'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")), bgcolor=ft.colors.RED_300))
+    list_view_data_client.controls.append(ft.Text('{hora} Error: {error}'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), error=data['error']), bgcolor=ft.colors.RED_300))
+    p.update()
 
 @caja.on('send_data_sales', namespace='/default')
 def send_files_sales(data: dict):
@@ -156,12 +163,13 @@ def connect():
     global reconnection
     config =  getConfigClient()
     if reconnection and int (config[10]) == 1:
-        if sqlQuerys(PATH_DSN_ODBC).get_data_local(config[3]) > 0:
-            no_factura = sqlQuerys(PATH_DSN_ODBC).get_serie_document_number(config[3])
-            no_factura_server = sqlQuerys(dsn='DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[5])).get_serie_document_number(config[3])
-            print(no_factura, no_factura_server)
-            if config[3][:3] == '1NF' or config[3][:3] == 'ZNF' and no_factura > no_factura_server:
-                caja.emit('update_ssistema_serie', data={'serie': config[3], 'ultima_factura': no_factura},namespace='/default')
+        reconnection_server(config=config, caja=caja, path_dsn_odbc=PATH_DSN_ODBC)
+        # if sqlQuerys(PATH_DSN_ODBC).get_data_local(config[3]) > 0:
+        #     no_factura = sqlQuerys(PATH_DSN_ODBC).get_serie_document_number(config[3])
+        #     no_factura_server = sqlQuerys(dsn='DSN=A2GKC;CatalogName={catalogname}'.format(catalogname=config[5])).get_serie_document_number(config[3])
+        #     print(no_factura, no_factura_server)
+        #     if config[3][:3] == '1NF' or config[3][:3] == 'ZNF' and no_factura > no_factura_server:
+        #         caja.emit('update_ssistema_serie', data={'serie': config[3], 'ultima_factura': no_factura},namespace='/default')
             
         show_message_powershell(r'scripts\\reconnection_message.ps1')
         reconnection = False
@@ -307,7 +315,7 @@ def main(page):
     p.overlay.append(snack_bar_msg_connection)
     badge_connection = ft.Badge(content=ft.Icon(ft.icons.ONLINE_PREDICTION), bgcolor=ft.colors.RED, alignment=ft.alignment.center,small_size=10)
     btn_save_data = ft.FloatingActionButton("Guardar", icon=ft.icons.SAVE, visible=False)  
-    page_config = ConfigPage(page=p, config=config, btn_save_data=btn_save_data, message_bar=snack_bar_msg_connection)
+    page_config = ConfigPage(page=p, config=config, btn_save_data=btn_save_data, message_bar=snack_bar_msg_connection, client=caja)
     sync_page = SyncPage(page=p, client_socket=caja, list_view_send_data=list_view_data_client, progress_ring=progress_ring)
     buttons_sidebar= GrupoContenedores(page=p, badge=badge_connection, page_container_to_show_settings=page_config, page_container_to_show_sync=sync_page).control_group
     
