@@ -154,15 +154,12 @@ class sqlQuerys:
             return str(e)
             
 
-    def filter_client(self, id:str):
-        clients = self.connection().execute(f"SELECT FC_CODIGO FROM SCLIENTES WHERE FC_CODIGO = '{id}'").fetchall()
-        for client in clients:
-            if client.FC_CODIGO == id:
-                fini = time.time()
-                self.dsn.close() 
-                return client
+    def all_clients(self):
+        clients = self.connection().execute(f"SELECT FC_CODIGO FROM SCLIENTES").fetchall()
+        return set(map(lambda x: str(x[0]), clients))
             
     async def insert_client(self, *args)-> bool | pyodbc.Error:
         pass
+
 
     
