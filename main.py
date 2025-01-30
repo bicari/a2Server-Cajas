@@ -9,7 +9,7 @@ import time
 import socketio.exceptions
 from controls import GrupoContenedores
 import pathlib
-from functions import getConfigClient, search_local_tables, decompress_file_sinc, show_message_powershell, saveSyncData, reconnection_server
+from functions import getConfigClient, search_local_tables, decompress_file_sinc, show_message_powershell, saveSyncData, reconnection_server, saveAutoClients
 import base64
 import sys
 from querys.update_tablas import sqlQuerys
@@ -71,7 +71,7 @@ def decompress_data():
         snack_bar_msg_connection.open = True
         snack_bar_msg_connection.bgcolor = ft.colors.RED_300
         snack_bar_msg_connection.duration = 4500
-
+        p.update()
     if os.path.exists('zip\\data_cajas_{serie}.zip'.format(serie=config[3])):
         if decompress_file_sinc('zip\\data_cajas_{serie}.zip'.format(serie = config[3]), config[2]):
             snack_bar_msg_connection.content = ft.Text('Sincronización inicial culminada, data actualizada')
@@ -80,11 +80,14 @@ def decompress_data():
             p.update()
                #llamando a funcion que actualiza la tabla susuarios con los directorios locales
             sqlQuerys(PATH_DSN_ODBC).update_susuarios(config[2])
+            auto_client = sqlQuerys(PATH_DSN_ODBC).get_lastAuto_clients()
+            saveAutoClients(str(auto_client))
             saveSyncData(datetime.datetime.now().strftime("%Y-%m-%d"))
 
 #Evento de sincronizacion de tablas al iniciar la app
-@caja.on('end_file', namespace='/default')
-def end_file(data: dict):    
+@caja.on('end_file', namespace='/default')#DEPRECEATED
+def end_file(data: dict):
+    """Evento sin uso"""    
     if os.path.isfile('zip\\data_partes_{sid_caja}.zip'.format(sid_caja=caja.sid)):
         if decompress_file_sinc('zip\\data_partes_{sid_caja}.zip'.format(sid_caja = caja.sid), config[2]):
                snack_bar_msg_connection.content = ft.Text('Sincronización inicial culminada, data actualizada')
@@ -102,13 +105,20 @@ def update_sinvdep(data: dict):
 
 @caja.on('clear_data_local', namespace='/default')
 def clear_data_local():
+    print('recibido')
     result = sqlQuerys(PATH_DSN_ODBC).clear_tablas_locales()
+
     if result:
         list_view_data_client.controls.append(ft.Text('{hora} Tablas locales de operaciones han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+        clients = sqlQuerys(PATH_DSN_ODBC).search_new_clients_local(config[11])
+        caja.emit('send_client', namespace='/default',data={"status": clients}, callback=validar_clientes )
     else:
         list_view_data_client.controls.append(ft.Text('{hora} ERROR:Tablas locales no han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")), color=ft.colors.RED_300))    
     p.update()
 
+def validar_clientes(respuesta):
+    print('Ejecutando callback en cliente')
+    print(respuesta)
 
 @caja.on('update_so_sd', namespace='/default')
 def update_soperacion_sdetalle_local(data:dict):
