@@ -125,6 +125,12 @@ class sqlQuerys:
             print(e)
             return 0       
 
+    def get_lastAuto_clients(self):
+        try:
+            auto = self.connection().execute("SELECT MAX(BASE_AUTOINCREMENT) FROM SCLIENTES").fetchone()[0]
+            return auto
+        except Exception as e:
+            return str(e)    
 
     async def max_Auto(self) -> tuple | str:
         try:
@@ -154,9 +160,78 @@ class sqlQuerys:
             return str(e)
             
 
-    def all_clients(self):
-        clients = self.connection().execute(f"SELECT FC_CODIGO FROM SCLIENTES").fetchall()
-        return set(map(lambda x: str(x[0]), clients))
+    def search_new_clients_local(self, auto: int):
+        clients = self.connection().execute(f"""SELECT FC_CODIGO, 
+FC_DESCRIPCION, 
+FC_STATUS, 
+FC_CLASIFICACION, 
+FC_DESCRIPCIONDETALLADA, 
+FC_NIT, 
+FC_RIF, 
+FC_TIPO, 
+FC_CONTACTO, 
+FC_DIRECCION1, 
+FC_DIRECCION2, 
+FC_DIRECCION3, 
+FC_TELEFONO, 
+FC_TELEFAX, 
+FC_EMAIL, 
+FC_WEBSITE, 
+FC_FORMAENVIO, 
+FC_ZONA, 
+FC_VENDEDOR, 
+FC_COBRADOR, 
+FC_LIMITECREDITO, 
+FC_DIASCREDITO, 
+FC_MORA, 
+FC_FECHAINICIO, 
+FC_MAXIMODESCUENTO, 
+FC_SALDO, 
+FC_PAGOSADELANTADOS, 
+FC_SALDOMONEDA2, 
+FC_PAGOSADELMONEDA2, 
+FC_TOTALVENTA, 
+FC_MAXIMOCREDITO, 
+FC_PROMEDIOPAGOSDIAS, 
+FC_TOTALIVARETENIDO, 
+FC_DESCTOPRONTOPAGO, 
+FC_FLAGCONTABILIDAD, 
+FC_FLAGULTIMASOPERACIONES, 
+FC_IMAGEN, 
+FC_FOTO, 
+FC_MONEDA, 
+FC_EXENTO, 
+FC_FRECUENCIA, 
+FC_DIACORTE, 
+FC_PRECIODEFECTO, 
+FC_DESCUENTOPRONTOPAGO, 
+FC_RECORDCONTADO, 
+FC_FECHANACIMIENTO, 
+FC_RETENCION, 
+FC_FORMATOFACTURA, 
+FC_FORMATOAPARTADO, 
+FC_FORMATOLOTE, 
+FC_FORMATODEVOLUCION, 
+FC_FORMATOPRESUPUESTO, 
+FC_FORMATONOTAENTREGA, 
+FC_FORMATOPEDIDO, 
+FC_MONEDACARGOSFIJO, 
+FC_MONEDACONVENIO, 
+FC_ESPECIAL, 
+FC_HISTORICO, 
+FC_EMISION, 
+FC_TOLERANCIA, 
+FC_CTOCOSTO, 
+FC_MSGTEXTO1, 
+FC_MSGTEXTO2, 
+FC_MSGTEXTO3, 
+FC_MSGTEXTO4, 
+FC_MSGTEXTO5, 
+FC_CODERETENCION, 
+FC_ISOPAIS, 
+FC_THKATIPOVENTA FROM SCLIENTES WHERE BASE_AUTOINCREMENT > {auto}""").fetchall()
+        return {'status': [tuple(client) for client in clients]}
+        return [tuple(client) for client in clients]
             
     async def insert_client(self, *args)-> bool | pyodbc.Error:
         pass
