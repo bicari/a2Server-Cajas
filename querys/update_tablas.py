@@ -1,5 +1,5 @@
 import pyodbc
-import time
+from decimal import Decimal
 from datetime import datetime
 from os import path
 
@@ -7,6 +7,8 @@ from os import path
 class sqlQuerys:
     def __init__(self, dsn= None):
         self.dsn = pyodbc.connect(dsn)
+
+        
 
     def connection(self):
         return self.dsn    
@@ -148,6 +150,90 @@ class sqlQuerys:
         except Exception as e:
             print(e)    
 
+
+    def insert_new_clients(self,data: dict):
+        try:
+            new_clients = 0
+            for client in data['data']:
+                descripcion_detallada = client[4].replace("\r", "'+#13+'").replace("\n", "'+#10+'") if client[4] != None else ""
+                direccion1 = client[9].replace("\r", "'+#13+'").replace("\n", "'+#10+'") if client[9] != None else ""
+                direccion2 = client[10].replace("\r", "'+#13+'").replace("\n", "'+#10+'") if client[10] != None else ""
+                direccion3 = client[11].replace("\r", "'+#13+'").replace("\n", "'+#10+'") if client[11] != None else ""
+                query=f"""INSERT INTO SCLIENTES (FC_CODIGO, 
+                        FC_DESCRIPCION, 
+                        FC_STATUS, 
+                        FC_CLASIFICACION, 
+                        FC_DESCRIPCIONDETALLADA, 
+                        FC_NIT, 
+                        FC_RIF, 
+                        FC_TIPO, 
+                        FC_CONTACTO, 
+                        FC_DIRECCION1, 
+                        FC_DIRECCION2, 
+                        FC_DIRECCION3, 
+                        FC_TELEFONO, 
+                        FC_TELEFAX, 
+                        FC_EMAIL, 
+                        FC_WEBSITE, 
+                        FC_FORMAENVIO, 
+                        FC_ZONA, 
+                        FC_VENDEDOR, 
+                        FC_COBRADOR, 
+                        FC_LIMITECREDITO, 
+                        FC_DIASCREDITO, 
+                        FC_MORA, 
+                        FC_FECHAINICIO, 
+                        FC_MAXIMODESCUENTO, 
+                        FC_SALDO, 
+                        FC_PAGOSADELANTADOS, 
+                        FC_SALDOMONEDA2, 
+                        FC_PAGOSADELMONEDA2, 
+                        FC_TOTALVENTA, 
+                        FC_MAXIMOCREDITO, 
+                        FC_PROMEDIOPAGOSDIAS, 
+                        FC_TOTALIVARETENIDO, 
+                        FC_DESCTOPRONTOPAGO, 
+                        FC_FLAGCONTABILIDAD, 
+                        FC_FLAGULTIMASOPERACIONES,  
+                        FC_MONEDA, 
+                        FC_EXENTO, 
+                        FC_FRECUENCIA, 
+                        FC_DIACORTE, 
+                        FC_PRECIODEFECTO, 
+                        FC_RECORDCONTADO, 
+                        FC_FECHANACIMIENTO, 
+                        FC_RETENCION, 
+                        FC_FORMATOFACTURA, 
+                        FC_FORMATOAPARTADO,  
+                        FC_CODERETENCION, 
+                        FC_ISOPAIS, 
+                        FC_THKATIPOVENTA) 
+                                      VALUES('{client[0]}', '{client[1]}', {"Null" if client[2]== None else client[2]}, {"Null" if client[3]==None else f"'{client[3]}'"}, 
+                                      '{descripcion_detallada}', {"Null" if client[5] == None else f"'{client[5]}'"}, {"Null" if client[6] == None else f"'{client[6]}'"},
+                                      {"Null" if client[7] == None else client[7]}, {"Null" if client[8] == None else f"'{client[8]}'"}, '{direccion1}', '{direccion2}', '{direccion3}',
+                                      {"Null" if client[12]== None else f"'{client[12]}'"}, {"Null" if client[13]== None else f"'{client[13]}'"}, {"Null" if client[14]== None else f"'{client[14]}'"},
+                                      {"Null" if client[15]== None else f"'{client[15]}'"}, {"Null" if client[16]== None else f"'{client[16]}'"}, {"Null" if client[17]== None else f"'{client[17]}'"},
+                                      {"Null" if client[18]== None else f"'{client[18]}'"}, {"Null" if client[19]== None else f"'{client[19]}'"}, {"Null" if client[20]==None else client[20]}, {"Null" if client[21]==None else client[21]},
+                                      {"Null" if client[22]== None else client[22]}, {"Null" if client[23]==None else f"'{client[23]}'"}, {"Null" if client[24]== None else client[24]}, {"Null" if client[25]== None else client[25]},
+                                      {"Null" if client[26]== None else client[26]}, {"Null" if client[27]== None else client[27]}, {"Null" if client[28]== None else client[28]}, {"Null" if client[29]== None else client[29]},
+                                      {"Null" if client[30]== None else client[30]}, {"Null" if client[31]== None else client[31]}, {"Null" if client[32]== None else client[32]}, {"Null" if client[33]== None else client[33]},
+                                      {"Null" if client[34]== None else client[34]}, {"Null" if client[35]== None else client[35]}, {"Null" if client[36]== None else f"'{client[36]}'"}, {"Null" if client[37]== None else client[37]},
+                                      {"Null" if client[38]== None else client[38]}, {"Null" if client[39]== None else client[39]}, {"Null" if client[40]== None else client[40]}, {"Null" if client[41]== None else client[41]},
+                                      {"Null" if client[42]== None else f"'{client[42]}'"}, {"Null" if client[43]== None else client[43]}, {"Null" if client[44]== None else f"'{client[44]}'"}, {"Null" if client[45]== None else f"'{client[45]}'"},
+                                      {"Null" if client[46]== None else f"'{client[46]}'"}, {"Null" if client[47]== None else f"'{client[47]}'"}, {"Null" if client[48]== None else f"'{client[48]}'"} 
+                                      )"""
+                #print(query)
+                try:
+                    rows = self.connection().execute(query).rowcount
+                    new_clients += rows
+                    self.connection().commit()
+                except pyodbc.Error as e:
+                    pass   
+                
+            return new_clients    
+        except Exception as e:
+            return str(e)    
+
     async def insert_into_data_server(self):
         try:
             self.connection().execute("INSERT INTO SOPERACIONINV SELECT * FROM zip_backup\\SOPERACIONINV")
@@ -162,76 +248,57 @@ class sqlQuerys:
 
     def search_new_clients_local(self, auto: int):
         clients = self.connection().execute(f"""SELECT FC_CODIGO, 
-FC_DESCRIPCION, 
-FC_STATUS, 
-FC_CLASIFICACION, 
-FC_DESCRIPCIONDETALLADA, 
-FC_NIT, 
-FC_RIF, 
-FC_TIPO, 
-FC_CONTACTO, 
-FC_DIRECCION1, 
-FC_DIRECCION2, 
-FC_DIRECCION3, 
-FC_TELEFONO, 
-FC_TELEFAX, 
-FC_EMAIL, 
-FC_WEBSITE, 
-FC_FORMAENVIO, 
-FC_ZONA, 
-FC_VENDEDOR, 
-FC_COBRADOR, 
-FC_LIMITECREDITO, 
-FC_DIASCREDITO, 
-FC_MORA, 
-FC_FECHAINICIO, 
-FC_MAXIMODESCUENTO, 
-FC_SALDO, 
-FC_PAGOSADELANTADOS, 
-FC_SALDOMONEDA2, 
-FC_PAGOSADELMONEDA2, 
-FC_TOTALVENTA, 
-FC_MAXIMOCREDITO, 
-FC_PROMEDIOPAGOSDIAS, 
-FC_TOTALIVARETENIDO, 
-FC_DESCTOPRONTOPAGO, 
-FC_FLAGCONTABILIDAD, 
-FC_FLAGULTIMASOPERACIONES, 
-FC_IMAGEN, 
-FC_FOTO, 
-FC_MONEDA, 
-FC_EXENTO, 
-FC_FRECUENCIA, 
-FC_DIACORTE, 
-FC_PRECIODEFECTO, 
-FC_DESCUENTOPRONTOPAGO, 
-FC_RECORDCONTADO, 
-FC_FECHANACIMIENTO, 
-FC_RETENCION, 
-FC_FORMATOFACTURA, 
-FC_FORMATOAPARTADO, 
-FC_FORMATOLOTE, 
-FC_FORMATODEVOLUCION, 
-FC_FORMATOPRESUPUESTO, 
-FC_FORMATONOTAENTREGA, 
-FC_FORMATOPEDIDO, 
-FC_MONEDACARGOSFIJO, 
-FC_MONEDACONVENIO, 
-FC_ESPECIAL, 
-FC_HISTORICO, 
-FC_EMISION, 
-FC_TOLERANCIA, 
-FC_CTOCOSTO, 
-FC_MSGTEXTO1, 
-FC_MSGTEXTO2, 
-FC_MSGTEXTO3, 
-FC_MSGTEXTO4, 
-FC_MSGTEXTO5, 
-FC_CODERETENCION, 
-FC_ISOPAIS, 
-FC_THKATIPOVENTA FROM SCLIENTES WHERE BASE_AUTOINCREMENT > {auto}""").fetchall()
-        return {'status': [tuple(client) for client in clients]}
-        return [tuple(client) for client in clients]
+                        FC_DESCRIPCION, 
+                        FC_STATUS, 
+                        FC_CLASIFICACION, 
+                        FC_DESCRIPCIONDETALLADA, 
+                        FC_NIT, 
+                        FC_RIF, 
+                        FC_TIPO, 
+                        FC_CONTACTO, 
+                        FC_DIRECCION1, 
+                        FC_DIRECCION2, 
+                        FC_DIRECCION3, 
+                        FC_TELEFONO, 
+                        FC_TELEFAX, 
+                        FC_EMAIL, 
+                        FC_WEBSITE, 
+                        FC_FORMAENVIO, 
+                        FC_ZONA, 
+                        FC_VENDEDOR, 
+                        FC_COBRADOR, 
+                        FC_LIMITECREDITO, 
+                        FC_DIASCREDITO, 
+                        FC_MORA, 
+                        FC_FECHAINICIO, 
+                        FC_MAXIMODESCUENTO, 
+                        FC_SALDO, 
+                        FC_PAGOSADELANTADOS, 
+                        FC_SALDOMONEDA2, 
+                        FC_PAGOSADELMONEDA2, 
+                        FC_TOTALVENTA, 
+                        FC_MAXIMOCREDITO, 
+                        FC_PROMEDIOPAGOSDIAS, 
+                        FC_TOTALIVARETENIDO, 
+                        FC_DESCTOPRONTOPAGO, 
+                        FC_FLAGCONTABILIDAD, 
+                        FC_FLAGULTIMASOPERACIONES,  
+                        FC_MONEDA, 
+                        FC_EXENTO, 
+                        FC_FRECUENCIA, 
+                        FC_DIACORTE, 
+                        FC_PRECIODEFECTO, 
+                        FC_RECORDCONTADO, 
+                        FC_FECHANACIMIENTO, 
+                        FC_RETENCION, 
+                        FC_FORMATOFACTURA, 
+                        FC_FORMATOAPARTADO,  
+                        FC_CODERETENCION, 
+                        FC_ISOPAIS, 
+                        FC_THKATIPOVENTA FROM SCLIENTES WHERE BASE_AUTOINCREMENT > {auto}""").fetchall()
+        #print('Numeros de campos', (len(client) for client in clients))
+        return {'data': [tuple(float(value) if isinstance(value, Decimal) else value for value in client) for client in clients]}
+        #return [tuple(client) for client in clients]
             
     async def insert_client(self, *args)-> bool | pyodbc.Error:
         pass
