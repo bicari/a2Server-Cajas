@@ -59,7 +59,8 @@ def getConfigClient():
     ip_server_files = client.get('CONFIG', 'SERVERFILES')
     port_server_files = client.get('CONFIG', 'PORTFILES')
     connection_mode = client.get('CONFIG', 'CONNECTION_MODE')
-    return ip, port, rutalocal, serie.upper(), series.upper().split(','),  a2data, ruta_a2_cash, sync, ip_server_files, port_server_files, connection_mode
+    lastAuto_sclientes = client.get('CONFIG', 'LASTAUTO') 
+    return ip, port, rutalocal, serie.upper(), series.upper().split(','),  a2data, ruta_a2_cash, sync, ip_server_files, port_server_files, connection_mode, lastAuto_sclientes
 
 def saveInitConfig(server_ip, port, serie, ruta_local, ruta_a2, ruta_a2_cash, portfiles, ipfiles, connection_mode):
     try:
@@ -79,6 +80,18 @@ def saveInitConfig(server_ip, port, serie, ruta_local, ruta_a2, ruta_a2_cash, po
         return True    
     except Exception as e:
         return e    
+
+def saveAutoClients(auto):
+    try:
+        file = configparser.ConfigParser()
+        file.read('client.ini')
+        file['CONFIG']['LASTAUTO'] = auto
+        with open('client.ini', 'w') as file_ini:
+            file.write(file_ini)
+        return True    
+    except Exception as e:
+        return str(e)   
+
 
 def saveSyncData(last_sync):
     try:
