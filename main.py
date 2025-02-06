@@ -103,22 +103,29 @@ def end_file(data: dict):
 def update_sinvdep(data: dict):
     print(data, 'test')
 
-@caja.on('clear_data_local', namespace='/default')
-def clear_data_local():
-    print('recibido')
-    result = sqlQuerys(PATH_DSN_ODBC).clear_tablas_locales()
+#@caja.on('clear_data_local', namespace='/default')
+def clear_data_local(respuesta: dict):
+    if respuesta['response'] ==  True:
+        result = sqlQuerys(PATH_DSN_ODBC).clear_tablas_locales()
 
-    if result:
-        list_view_data_client.controls.append(ft.Text('{hora} Tablas locales de operaciones han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
-        clients = sqlQuerys(PATH_DSN_ODBC).search_new_clients_local(config[11])
-        caja.emit('send_client', namespace='/default',data=clients, callback=validar_clientes )
+        if result:
+            list_view_data_client.controls.append(ft.Text('{hora} Tablas locales de operaciones han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
+            clients = sqlQuerys(PATH_DSN_ODBC).search_new_clients_local(config[11])
+            caja.emit('send_client', namespace='/default',data=clients, callback=validar_clientes )
+        else:
+            list_view_data_client.controls.append(ft.Text('{hora} ERROR:Tablas locales no han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")), color=ft.colors.RED_300))    
     else:
-        list_view_data_client.controls.append(ft.Text('{hora} ERROR:Tablas locales no han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")), color=ft.colors.RED_300))    
+        list_view_data_client.controls.append(ft.Text('{hora} {error}'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), error=respuesta['response']), color=ft.colors.RED_300))
+        list_view_data_client.controls.append(ft.Text('{hora} La excepcion anterior indica un error de insercion en las tablas por favor repare [Soperacioninv, SdetalleVenta] o contacte al desarollador de la app'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), error=respuesta['response']), color=ft.colors.RED_300))
     p.update()
 
-def validar_clientes(respuesta):
+def validar_clientes(respuesta: dict):
     print('Ejecutando callback en cliente')
-    print(respuesta)
+    if type(respuesta['response']) == int:
+        list_view_data_client.controls.append(ft.Text('{hora} {clientes} Nuevos clientes insertados en Base de datos'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), clientes=str(respuesta['response']))))
+    else:
+        list_view_data_client.controls.append(ft.Text('{hora} {error}'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), error=respuesta['response'])))
+    p.update()
 
 @caja.on('update_so_sd', namespace='/default')
 def update_soperacion_sdetalle_local(data:dict):
@@ -157,7 +164,7 @@ def send_files_sales(data: dict):
                 while True:
                     bytes_file_sales = file.read(1024*1024)
                     if not bytes_file_sales:
-                        caja.emit('end_file_client', data={'iter_client': iter}, namespace='/default')
+                        caja.emit('end_file_client', data={'iter_client': iter}, namespace='/default', callback=clear_data_local)
                         list_view_data_client.controls.append(ft.Text('{hora} datos enviados con éxito'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
                         break
                     encoded_bytes = base64.b64encode(bytes_file_sales)
