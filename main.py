@@ -111,7 +111,7 @@ def clear_data_local():
     if result:
         list_view_data_client.controls.append(ft.Text('{hora} Tablas locales de operaciones han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))))
         clients = sqlQuerys(PATH_DSN_ODBC).search_new_clients_local(config[11])
-        caja.emit('send_client', namespace='/default',data={"status": clients}, callback=validar_clientes )
+        caja.emit('send_client', namespace='/default',data=clients, callback=validar_clientes )
     else:
         list_view_data_client.controls.append(ft.Text('{hora} ERROR:Tablas locales no han sido despejadas'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")), color=ft.colors.RED_300))    
     p.update()
