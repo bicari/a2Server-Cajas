@@ -22,7 +22,12 @@ class NamespaceServer(socketio.AsyncNamespace):
     def __init__(self, namespace):
         super().__init__(namespace)
         self.namespace = namespace #Espacio de nombre general
-        
+
+    async def on_send_client(self, sid, data):
+         clients = sqlQuerys('DSN=a2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).insert_new_clients(data=data)
+         return {"response": clients}
+              
+
         
     async def on_recv_data_tables_client(self, sid, data:dict):
          lists_file_clients.append(base64.b64decode(data['file']))#Decodificando partes de archivo segun codificacion base64
@@ -36,14 +41,16 @@ class NamespaceServer(socketio.AsyncNamespace):
                if os.path.isfile('zip\\data_partes_ventas_{sid}.zip'.format(sid=sid)):
                     await decompress_file('zip\\data_partes_ventas_{sid}.zip'.format(sid=sid), path_decompress='zip_backup\\')
                result = await sqlQuerys('DSN=a2GKC;CatalogName={catalogname}'.format(catalogname=config[2])).insert_into_data_server()
-               print(result, 'Resultado', type(result))     
-               if type(result) == str:
-                    await server_sio.emit('error_insert', to=sid, namespace='/default', data={'error': result})     
-                    
-               else:
-                    await server_sio.emit('clear_data_local', to=sid, namespace='/default')
+               lists_file_clients.clear()
+               return {"response": result}
+               # print(result, 'Resultado', type(result))     
+               # if type(result) == str:
+               #      #await server_sio.emit('error_insert', to=sid, namespace='/default', data={'error': result})     
+               #      await server_sio.emit('clear_data_local', to=sid, namespace='/default')
+               # else:
+               #      await server_sio.emit('clear_data_local', to=sid, namespace='/default')
                
-          lists_file_clients.clear()
+          
 
     async def on_update_ssistema_serie(self, sid, data):
          """Funcion que actualiza el numero de correlativo de facturacion en la tabla Ssistema, y luego emite un evento de actualizacion
