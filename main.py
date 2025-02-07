@@ -123,8 +123,9 @@ def validar_clientes(respuesta: dict):
     print('Ejecutando callback en cliente')
     if type(respuesta['response']) == int:
         list_view_data_client.controls.append(ft.Text('{hora} {clientes} Nuevos clientes insertados en Base de datos'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), clientes=str(respuesta['response']))))
+        list_view_data_client.controls.append(ft.Text('{hora} Proceso finalizado con éxito'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),color=ft.colors.GREEN_300))
     else:
-        list_view_data_client.controls.append(ft.Text('{hora} {error}'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), error=respuesta['response'])))
+        list_view_data_client.controls.append(ft.Text('{hora} {error}'.format(hora=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), error=respuesta['response']),color=ft.colors.RED_300))
     p.update()
 
 @caja.on('update_so_sd', namespace='/default')
