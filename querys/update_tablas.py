@@ -1,6 +1,6 @@
 import pyodbc
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 from os import path
 
 
@@ -227,10 +227,11 @@ class sqlQuerys:
                     rows = self.connection().execute(query).rowcount
                     new_clients += rows
                     self.connection().commit()
+                    
                 except pyodbc.Error as e:
                     pass   
-                
             return new_clients    
+                
         except Exception as e:
             return str(e)    
 
@@ -242,7 +243,6 @@ class sqlQuerys:
             self.connection().close()
             return True
         except Exception as e:
-            print(e)
             return str(e)
             
 
@@ -297,7 +297,7 @@ class sqlQuerys:
                         FC_ISOPAIS, 
                         FC_THKATIPOVENTA FROM SCLIENTES WHERE BASE_AUTOINCREMENT > {auto}""").fetchall()
         #print('Numeros de campos', (len(client) for client in clients))
-        return {'data': [tuple(float(value) if isinstance(value, Decimal) else value for value in client) for client in clients]}
+        return {'data': [tuple(float(value) if isinstance(value, Decimal) else (str(value) if isinstance(value, (datetime, date)) else value) for value in client) for client in clients]}
         #return [tuple(client) for client in clients]
             
     async def insert_client(self, *args)-> bool | pyodbc.Error:
