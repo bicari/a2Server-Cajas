@@ -16,7 +16,7 @@ from querys.update_tablas import sqlQuerys
 from tray_icon import Icon
 from pages import ConfigPage, SyncPage
 from querys import sqlQuerys
-from querys.create_tablas import SOPERACIONINV, SDETALLEVENTA, SDETALLEINV, STRANSBANCO,SCUENTASXCOBRAR,SDETALLECOMPRA,SDETALLEPARTES,STRANSCUENTA 
+from querys.create_tablas import SOPERACIONINV, SDETALLEVENTA, SDETALLEINV, STRANSBANCO,SCUENTASXCOBRAR,SDETALLECOMPRA,SDETALLEPARTES,STRANSCUENTA, A2SISTEMACARGOS, A2SISTEMACARGOSALICUOTAS, SOPERACIONINVCARGOS
 import requests
 import json 
 
@@ -388,7 +388,8 @@ def check_if_running():
 
 if __name__ == '__main__':
     #tray_icon_minimize.run_detached(setup=my_setup)
-    sqlQuerys('DSN=A2GKC; CatalogName={catalogname}'.format(catalogname = config[2])).create_tables_locales(tables=(SOPERACIONINV, SDETALLEINV, SDETALLEVENTA, STRANSBANCO,SCUENTASXCOBRAR,SDETALLECOMPRA,SDETALLEPARTES,STRANSCUENTA))
+    sqlQuerys('DSN=A2GKC; CatalogName={catalogname}'.format(catalogname = config[2])).create_tables_locales(tables=(SOPERACIONINV, 
+                    SDETALLEINV, SDETALLEVENTA, STRANSBANCO,SCUENTASXCOBRAR,SDETALLECOMPRA,SDETALLEPARTES,STRANSCUENTA, A2SISTEMACARGOSALICUOTAS, A2SISTEMACARGOS, SOPERACIONINVCARGOS))
     if not os.path.exists(f"{pathlib.Path().absolute()}\\tmp"):
         os.mkdir(f"{pathlib.Path().absolute()}\\tmp")
     if not os.path.exists(f"{pathlib.Path().absolute()}\\zip"):
